@@ -1,4 +1,25 @@
-# DNLP SS23 Final Project - Multitask BERT
+# DNLP SS23 Final Project - Multitask BERT - Token Tricksters
+
+## Setup
+
+Clone the repository to your local machine.
+````
+git clone git@gitlab.gwdg.de:deep-learning-nlp/token-tricksters.git
+````
+
+Add the task repository as upstream
+````
+git remote add upstream https://github.com/truas/minbert-default-final-project
+````
+Disable push to the upstream repository
+````
+git remote set-url --push upstream DISABLE
+````
+Check that everything is properly configured
+````
+git remote -v
+````
+## Introduction
 
 This is the starting code for the default final project for the Deep Learning for Natural Language Processing course at the University of Göttingen. You can find the handout [here](https://1drv.ms/b/s!AkgwFZyClZ_qk718ObYhi8tF4cjSSQ?e=3gECnf)
 
