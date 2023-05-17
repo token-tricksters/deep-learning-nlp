@@ -22,8 +22,8 @@ git remote -v
 
 If you want to update using the upstream repository use the following commands
 ````
-  git fetch upstream
-  git rebase upstream/main
+git fetch upstream
+git rebase upstream/main
 ````
 ## Introduction
 
