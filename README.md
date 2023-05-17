@@ -19,6 +19,12 @@ Check that everything is properly configured
 ````
 git remote -v
 ````
+
+If you want to update using the upstream repository use the following commands
+````
+  git fetch upstream
+  git rebase upstream/main
+````
 ## Introduction
 
 This is the starting code for the default final project for the Deep Learning for Natural Language Processing course at the University of Göttingen. You can find the handout [here](https://1drv.ms/b/s!AkgwFZyClZ_qk718ObYhi8tF4cjSSQ?e=3gECnf)
