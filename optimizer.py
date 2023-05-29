@@ -45,17 +45,6 @@ class AdamW(Optimizer):
                 # State should be stored in this dictionary
                 state = self.state[p]
 
-                if "t" not in state:
-                    state["t"] = torch.tensor([0])
-
-                if "m" not in state:
-                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype) # grad.clone()  # torch.zeros(size=grad.size(), dtype=grad.dtype)
-
-                if "v" not in state:
-                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype) # state["m"].clone()
-
-                state["t"] += 1
-
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
                 beta_1, beta_2 = group["betas"]
@@ -63,26 +52,47 @@ class AdamW(Optimizer):
                 weight_decay = group["weight_decay"]
                 correct_bias = group["correct_bias"]
 
-                state["m"] = beta_1 * state["m"] + (1 - beta_1) * grad
-                state["v"] = beta_2 * state["v"] + (1 - beta_2) * torch.square(grad)
-                m_hat = state["m"] / (1 - torch.pow(beta_1, state["t"]))
-                v_hat = state["v"] / (1 - torch.pow(beta_2, state["t"]))
+                # Init state variables
 
-                p.data = p.data - alpha * m_hat / (torch.sqrt(v_hat) + eps)
+                if "t" not in state:
+                    state["t"] = torch.tensor([0])
+
+                if "m" not in state:
+                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype)
+
+                if "v" not in state:
+                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype)
+
+                state["t"] += 1
+
+                # Calculation of new weights
 
                 # Complete the implementation of AdamW here, reading and saving
                 # your state in the `state` dictionary above.
                 # The hyperparameters can be read from the `group` dictionary
                 # (they are lr, betas, eps, weight_decay, as saved in the constructor).
-                #
+
+                # Step 4???
+                grad = grad.add(p.data, alpha=weight_decay)
+
                 # 1- Update first and second moments of the gradients
+
+                state["m"] = beta_1 * state["m"] + (1 - beta_1) * grad
+                state["v"] = beta_2 * state["v"] + (1 - beta_2) * torch.square(grad)
+
                 # 2- Apply bias correction
                 #    (using the "efficient version" given in https://arxiv.org/abs/1412.6980;
                 #     also given in the pseudo-code in the project description).
+
+                m_hat = state["m"] / (1 - torch.pow(beta_1, state["t"]))
+                v_hat = state["v"] / (1 - torch.pow(beta_2, state["t"]))
+
                 # 3- Update parameters (p.data).
+
+                p.data = p.data - alpha * m_hat / (torch.sqrt(v_hat) + eps)
+
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
-
-                ### TODO
+                print(alpha, weight_decay)
 
         return loss
