@@ -28,6 +28,7 @@ class AdamW(Optimizer):
 
     def step(self, closure: Callable = None):
         loss = None
+
         if closure is not None:
             loss = closure()
 
@@ -35,15 +36,39 @@ class AdamW(Optimizer):
             for p in group["params"]:
                 if p.grad is None:
                     continue
+
                 grad = p.grad.data
+
                 if grad.is_sparse:
                     raise RuntimeError("Adam does not support sparse gradients, please consider SparseAdam instead")
 
                 # State should be stored in this dictionary
                 state = self.state[p]
 
+                if "t" not in state:
+                    state["t"] = torch.tensor([0])
+
+                if "m" not in state:
+                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype) # grad.clone()  # torch.zeros(size=grad.size(), dtype=grad.dtype)
+
+                if "v" not in state:
+                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype) # state["m"].clone()
+
+                state["t"] += 1
+
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
+                beta_1, beta_2 = group["betas"]
+                eps = group["eps"]
+                weight_decay = group["weight_decay"]
+                correct_bias = group["correct_bias"]
+
+                state["m"] = beta_1 * state["m"] + (1 - beta_1) * grad
+                state["v"] = beta_2 * state["v"] + (1 - beta_2) * torch.square(grad)
+                m_hat = state["m"] / (1 - torch.pow(beta_1, state["t"]))
+                v_hat = state["v"] / (1 - torch.pow(beta_2, state["t"]))
+
+                p.data = p.data - alpha * m_hat / (torch.sqrt(v_hat) + eps)
 
                 # Complete the implementation of AdamW here, reading and saving
                 # your state in the `state` dictionary above.
@@ -59,7 +84,5 @@ class AdamW(Optimizer):
                 #    (incorporating the learning rate again).
 
                 ### TODO
-                raise NotImplementedError
-
 
         return loss
