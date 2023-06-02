@@ -28,10 +28,6 @@ def test_optimizer(opt_class) -> torch.Tensor:
 
 ref = torch.tensor(np.load("optimizer_test.npy"))
 actual = test_optimizer(AdamW)
-torch.set_printoptions(8)
-print(ref)
-print(actual)
-print("diff", ref-actual)
 assert torch.allclose(ref, actual, atol=1e-6, rtol=1e-4)
 print("Optimizer test passed!")
 
