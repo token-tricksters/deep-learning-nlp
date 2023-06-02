@@ -72,8 +72,6 @@ class AdamW(Optimizer):
                 # The hyperparameters can be read from the `group` dictionary
                 # (they are lr, betas, eps, weight_decay, as saved in the constructor).
 
-                # Step 4???
-                grad = grad.add(p.data, alpha=weight_decay)
 
                 # 1- Update first and second moments of the gradients
 
@@ -84,15 +82,14 @@ class AdamW(Optimizer):
                 #    (using the "efficient version" given in https://arxiv.org/abs/1412.6980;
                 #     also given in the pseudo-code in the project description).
 
-                m_hat = state["m"] / (1 - torch.pow(beta_1, state["t"]))
-                v_hat = state["v"] / (1 - torch.pow(beta_2, state["t"]))
+                a_t = alpha * torch.sqrt(1 - beta_2 ** state["t"]) / (1 - beta_1 ** state["t"])
 
                 # 3- Update parameters (p.data).
 
-                p.data = p.data - alpha * m_hat / (torch.sqrt(v_hat) + eps)
+                p.data = p.data - a_t * state["m"] / (torch.sqrt(state["v"]) + eps)
 
+                p.data = p.data - alpha * p.data * weight_decay
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
-                print(alpha, weight_decay)
 
         return loss
