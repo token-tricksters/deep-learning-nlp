@@ -45,6 +45,8 @@ class AdamW(Optimizer):
                 # State should be stored in this dictionary
                 state = self.state[p]
 
+                device = grad.device
+
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
                 beta_1, beta_2 = group["betas"]
@@ -55,13 +57,13 @@ class AdamW(Optimizer):
                 # Init state variables
 
                 if "t" not in state:
-                    state["t"] = torch.tensor([0])
+                    state["t"] = torch.tensor([0]).to(device)
 
                 if "m" not in state:
-                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype)
+                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(device)
 
                 if "v" not in state:
-                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype)
+                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(device)
 
                 state["t"] += 1
 
