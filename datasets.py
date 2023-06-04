@@ -7,7 +7,6 @@ You should only need to call load_multitask_data to get the training and dev exa
 to train your model.
 '''
 
-
 import csv
 
 import torch
@@ -37,7 +36,6 @@ class SentenceClassificationDataset(Dataset):
         return self.dataset[idx]
 
     def pad_data(self, data):
-
         sents = [x[0] for x in data]
         labels = [x[1] for x in data]
         sent_ids = [x[2] for x in data]
@@ -50,15 +48,15 @@ class SentenceClassificationDataset(Dataset):
         return token_ids, attention_mask, labels, sents, sent_ids
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, labels, sents, sent_ids= self.pad_data(all_data)
+        token_ids, attention_mask, labels, sents, sent_ids = self.pad_data(all_data)
 
         batched_data = {
-                'token_ids': token_ids,
-                'attention_mask': attention_mask,
-                'labels': labels,
-                'sents': sents,
-                'sent_ids': sent_ids
-            }
+            'token_ids': token_ids,
+            'attention_mask': attention_mask,
+            'labels': labels,
+            'sents': sents,
+            'sent_ids': sent_ids
+        }
 
         return batched_data
 
@@ -86,20 +84,20 @@ class SentenceClassificationTestDataset(Dataset):
         return token_ids, attention_mask, sents, sent_ids
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, sents, sent_ids= self.pad_data(all_data)
+        token_ids, attention_mask, sents, sent_ids = self.pad_data(all_data)
 
         batched_data = {
-                'token_ids': token_ids,
-                'attention_mask': attention_mask,
-                'sents': sents,
-                'sent_ids': sent_ids
-            }
+            'token_ids': token_ids,
+            'attention_mask': attention_mask,
+            'sents': sents,
+            'sent_ids': sent_ids
+        }
 
         return batched_data
 
 
 class SentencePairDataset(Dataset):
-    def __init__(self, dataset, args, isRegression =False):
+    def __init__(self, dataset, args, isRegression=False):
         self.dataset = dataset
         self.p = args
         self.isRegression = isRegression
@@ -131,11 +129,10 @@ class SentencePairDataset(Dataset):
             labels = torch.DoubleTensor(labels)
         else:
             labels = torch.LongTensor(labels)
-            
 
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
-                labels,sent_ids)
+                labels, sent_ids)
 
     def collate_fn(self, all_data):
         (token_ids, token_type_ids, attention_mask,
@@ -143,15 +140,15 @@ class SentencePairDataset(Dataset):
          labels, sent_ids) = self.pad_data(all_data)
 
         batched_data = {
-                'token_ids_1': token_ids,
-                'token_type_ids_1': token_type_ids,
-                'attention_mask_1': attention_mask,
-                'token_ids_2': token_ids2,
-                'token_type_ids_2': token_type_ids2,
-                'attention_mask_2': attention_mask2,
-                'labels': labels,
-                'sent_ids': sent_ids
-            }
+            'token_ids_1': token_ids,
+            'token_type_ids_1': token_type_ids,
+            'attention_mask_1': attention_mask,
+            'token_ids_2': token_ids2,
+            'token_type_ids_2': token_type_ids2,
+            'attention_mask_2': attention_mask2,
+            'labels': labels,
+            'sent_ids': sent_ids
+        }
 
         return batched_data
 
@@ -184,10 +181,9 @@ class SentencePairTestDataset(Dataset):
         attention_mask2 = torch.LongTensor(encoding2['attention_mask'])
         token_type_ids2 = torch.LongTensor(encoding2['token_type_ids'])
 
-
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
-               sent_ids)
+                sent_ids)
 
     def collate_fn(self, all_data):
         (token_ids, token_type_ids, attention_mask,
@@ -195,14 +191,14 @@ class SentencePairTestDataset(Dataset):
          sent_ids) = self.pad_data(all_data)
 
         batched_data = {
-                'token_ids_1': token_ids,
-                'token_type_ids_1': token_type_ids,
-                'attention_mask_1': attention_mask,
-                'token_ids_2': token_ids2,
-                'token_type_ids_2': token_type_ids2,
-                'attention_mask_2': attention_mask2,
-                'sent_ids': sent_ids
-            }
+            'token_ids_1': token_ids,
+            'token_type_ids_1': token_type_ids,
+            'attention_mask_1': attention_mask,
+            'token_ids_2': token_ids2,
+            'token_type_ids_2': token_type_ids2,
+            'attention_mask_2': attention_mask2,
+            'sent_ids': sent_ids
+        }
 
         return batched_data
 
@@ -214,17 +210,17 @@ def load_multitask_test_data():
 
     sentiment_data = []
 
-    with open(sentiment_filename, 'r') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+    with open(sentiment_filename, 'r', encoding='utf-8') as fp:
+        for record in csv.DictReader(fp, delimiter='\t'):
             sent = record['sentence'].lower().strip()
             sentiment_data.append(sent)
 
     print(f"Loaded {len(sentiment_data)} test examples from {sentiment_filename}")
 
     paraphrase_data = []
-    with open(paraphrase_filename, 'r') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
-            #if record['split'] != split:
+    with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
+        for record in csv.DictReader(fp, delimiter='\t'):
+            # if record['split'] != split:
             #    continue
             paraphrase_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
@@ -233,8 +229,8 @@ def load_multitask_test_data():
     print(f"Loaded {len(paraphrase_data)} test examples from {paraphrase_filename}")
 
     similarity_data = []
-    with open(similarity_filename, 'r') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+    with open(similarity_filename, 'r', encoding='utf-8') as fp:
+        for record in csv.DictReader(fp, delimiter='\t'):
             similarity_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
                                     ))
@@ -244,45 +240,45 @@ def load_multitask_test_data():
     return sentiment_data, paraphrase_data, similarity_data
 
 
-
-def load_multitask_data(sentiment_filename,paraphrase_filename,similarity_filename,split='train'):
+def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_filename, split='train'):
     sentiment_data = []
     num_labels = {}
     if split == 'test':
-        with open(sentiment_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(sentiment_filename, 'r', encoding='utf-8') as fp:
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
-                sentiment_data.append((sent,sent_id))
+                sentiment_data.append((sent, sent_id))
     else:
-        with open(sentiment_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(sentiment_filename, 'r', encoding='utf-8') as fp:
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
                 label = int(record['sentiment'].strip())
                 if label not in num_labels:
                     num_labels[label] = len(num_labels)
-                sentiment_data.append((sent, label,sent_id))
+                sentiment_data.append((sent, label, sent_id))
 
     print(f"Loaded {len(sentiment_data)} {split} examples from {sentiment_filename}")
 
     paraphrase_data = []
     if split == 'test':
-        with open(paraphrase_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 paraphrase_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),
                                         sent_id))
 
     else:
-        with open(paraphrase_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
+            print(fp)
+            for record in csv.DictReader(fp, delimiter='\t'):
                 try:
                     sent_id = record['id'].lower().strip()
                     paraphrase_data.append((preprocess_string(record['sentence1']),
                                             preprocess_string(record['sentence2']),
-                                            int(float(record['is_duplicate'])),sent_id))
+                                            int(float(record['is_duplicate'])), sent_id))
                 except:
                     pass
 
@@ -290,19 +286,19 @@ def load_multitask_data(sentiment_filename,paraphrase_filename,similarity_filena
 
     similarity_data = []
     if split == 'test':
-        with open(similarity_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(similarity_filename, 'r', encoding='utf-8') as fp:
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2'])
-                                        ,sent_id))
+                                        , sent_id))
     else:
-        with open(similarity_filename, 'r') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+        with open(similarity_filename, 'r', encoding='utf-8') as fp:
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),
-                                        float(record['similarity']),sent_id))
+                                        float(record['similarity']), sent_id))
 
     print(f"Loaded {len(similarity_data)} {split} examples from {similarity_filename}")
 
