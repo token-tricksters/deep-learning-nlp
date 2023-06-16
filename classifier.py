@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
-from optimizer import AdamW
+from optimizer import AdamW, SophiaG
 from tqdm import tqdm
 
 TQDM_DISABLE = False
@@ -259,7 +259,11 @@ def train(args):
     model = model.to(device)
 
     lr = args.lr
-    optimizer = AdamW(model.parameters(), lr=lr)
+    #optimizer = AdamW(model.parameters(), lr=lr)
+    optimizer = SophiaG(model.parameters(), lr=lr, betas=(0.965, 0.99), rho=0.01, weight_decay=0.01)
+    k = 10
+    iter_num = 0
+
     best_dev_acc = 0
 
     # Run for the specified number of epochs
@@ -280,10 +284,20 @@ def train(args):
             loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
             loss.backward()
-            optimizer.step()
+            optimizer.step(bs = args.batch_size)
 
             train_loss += loss.item()
             num_batches += 1
+
+            if iter_num % k != k - 1:
+                logits = model(b_ids, torch.ones_like(b_mask))
+                samp_dist = torch.distributions.Categorical(logits=logits)
+                y_sample = samp_dist.sample()
+                loss_sampled = F.cross_entropy(logits, y_sample.view(-1), reduction='sum') / args.batch_size
+                loss_sampled.backward()
+                optimizer.update_hessian()
+
+            iter_num += 1
 
         train_loss = train_loss / (num_batches)
 

@@ -1,3 +1,4 @@
+from calendar import c
 from typing import Callable, Iterable, Tuple
 import math
 
@@ -56,8 +57,7 @@ class AdamW(Optimizer):
 
                 # State should be stored in this dictionary
                 state = self.state[p]
-
-                device = grad.device
+                device = p.device
 
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
@@ -67,7 +67,6 @@ class AdamW(Optimizer):
                 correct_bias = group["correct_bias"]
 
                 # Init state variables
-
                 if "t" not in state:
                     state["t"] = torch.tensor([0]).to(device)
 
@@ -91,7 +90,6 @@ class AdamW(Optimizer):
                 # (they are lr, betas, eps, weight_decay, as saved in the constructor).
 
                 # 1- Update first and second moments of the gradients
-
                 state["m"] = beta_1 * state["m"] + (1 - beta_1) * grad
                 state["v"] = beta_2 * state["v"] + (1 - beta_2) * torch.square(grad)
 
@@ -106,12 +104,10 @@ class AdamW(Optimizer):
                     )
 
                 # 3- Update parameters (p.data).
-
                 p.data = p.data - alpha * state["m"] / (torch.sqrt(state["v"]) + eps)
 
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
-
                 p.data = p.data - group["lr"] * p.data * weight_decay
 
         return loss
@@ -150,5 +146,68 @@ class SophiaG(Optimizer):
         )
         super(SophiaG, self).__init__(params, defaults)
 
+    @torch.no_grad()
+    def update_hessian(self):
+        for group in self.param_groups:
+            beta1, beta2 = group["betas"]
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                state = self.state[p]
+
+                state["hessian"] = beta2 * state["hessian"] + (
+                    1 - beta2
+                ) * torch.square(p.grad.data)
+
     def step(self, closure: Callable = None, bs: int = 5120):
-        pass
+        loss = None
+
+        if closure is not None:
+            loss = closure()
+
+        for group in self.param_groups:
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+
+                grad = p.grad.data
+
+                if grad.is_sparse:
+                    raise RuntimeError("Sophia does not support sparse gradients")
+
+                # State should be stored in this dictionary
+                state = self.state[p]
+                device = p.device
+
+                # Init state variables
+                if len(state) == 0:
+                    state["step"] = torch.zeros((1,), dtype=torch.float, device=device)
+                    state["exp_avg"] = torch.zeros_like(p)
+                    state["hessian"] = torch.zeros_like(p)
+
+                # Access hyperparameters from the `group` dictionary
+                beta1, beta2 = group["betas"]
+                rho = group["rho"]
+                exp_avg = state["exp_avg"]
+                lr = group["lr"]
+                weight_decay = group["weight_decay"]
+
+                # Calculation of new weights
+                state["step"] += 1
+
+                # 1 - Perform stepweight decay
+                p.data = p.data - p.data * lr * weight_decay
+
+                # 2 - Decay the first and second moment running average coefficient
+                state["exp_avg"] = beta1 * exp_avg + (1 - beta1) * grad
+
+                # 3 - Decay the hessian running average coefficient
+                step_size_neg = -lr
+
+                ratio = (exp_avg.abs() / (rho * bs * state["hessian"] + 1e-15)).clamp(
+                    None, 1
+                )
+
+                p.data = p.data + exp_avg.sign() * ratio * step_size_neg
+
+        return loss
