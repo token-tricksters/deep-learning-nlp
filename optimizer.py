@@ -152,7 +152,7 @@ class SophiaG(Optimizer):
     def update_hessian(self, bs: int):
         for group in self.param_groups:
             _, beta2 = group["betas"]
-            
+
             for p in group["params"]:
                 if p.grad is None:
                     continue
@@ -160,10 +160,9 @@ class SophiaG(Optimizer):
 
                 # B · ^g ⊙ ^g
                 new_hess = bs * torch.square(p.grad)
-                hess = state["hessian"]
 
                 # Update the hessian estimate (moving average)
-                state["hessian"] = beta2 * hess + (1 - beta2) * new_hess
+                state["hessian"].mul_(beta2).add_(new_hess, alpha=1 - beta2)
 
     def step(self, closure: Callable = None):
         loss = None
@@ -200,17 +199,17 @@ class SophiaG(Optimizer):
                 hess = state["hessian"]
 
                 # Calculation of new weights
-                state["step"] += 1  
+                state["step"] += 1
 
                 # 1 - Perform stepweight decay
-                p.data = p.data - p.data * lr * weight_decay
+                p.data.mul_(1 - lr * weight_decay)
 
                 # 2 - Decay the first and second moment running average coefficient
-                state["exp_avg"] = beta1 * exp_avg + (1 - beta1) * grad
+                state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
 
                 # 3 - Decay the hessian running average coefficient
                 # Clipping the hessian.
                 ratio = (state["exp_avg"] / (hess + 1e-12)).clamp(-rho, rho)
-                p.data = p.data - lr * ratio
+                p.data.mul_(1 - lr * ratio)
 
         return loss
