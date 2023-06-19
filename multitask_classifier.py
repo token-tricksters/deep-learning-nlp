@@ -1,4 +1,5 @@
 import time, random, numpy as np, argparse, sys, re, os
+from turtle import forward
 from types import SimpleNamespace
 
 import torch
@@ -71,8 +72,8 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        ### TODO
-        raise NotImplementedError
+        result = forward(input_ids, attention_mask)
+        return self.linear_layer(self.dropout(result['pooler_output']))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
