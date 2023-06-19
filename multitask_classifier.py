@@ -54,6 +54,9 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+
         self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
         self.similarity_linear = nn.Linear(config.hidden_size, 1)
 
