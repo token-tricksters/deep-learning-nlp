@@ -149,7 +149,7 @@ class SophiaG(Optimizer):
     @torch.no_grad()
     def update_hessian(self):
         for group in self.param_groups:
-            beta1, beta2 = group["betas"]
+            _, beta2 = group["betas"]
             for p in group["params"]:
                 if p.grad is None:
                     continue
@@ -186,7 +186,7 @@ class SophiaG(Optimizer):
                     state["hessian"] = torch.zeros_like(p)
 
                 # Access hyperparameters from the `group` dictionary
-                beta1, beta2 = group["betas"]
+                beta1, _ = group["betas"]
                 rho = group["rho"]
                 exp_avg = state["exp_avg"]
                 lr = group["lr"]
@@ -202,12 +202,10 @@ class SophiaG(Optimizer):
                 state["exp_avg"] = beta1 * exp_avg + (1 - beta1) * grad
 
                 # 3 - Decay the hessian running average coefficient
-                step_size_neg = -lr
-
                 ratio = (exp_avg.abs() / (rho * bs * state["hessian"] + 1e-15)).clamp(
                     None, 1
                 )
 
-                p.data = p.data + exp_avg.sign() * ratio * step_size_neg
+                p.data = p.data + exp_avg.sign() * ratio * -lr
 
         return loss

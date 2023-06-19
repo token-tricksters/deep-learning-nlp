@@ -260,7 +260,7 @@ def train(args):
 
     lr = args.lr
     #optimizer = AdamW(model.parameters(), lr=lr)
-    optimizer = SophiaG(model.parameters(), lr=lr, betas=(0.965, 0.99), rho=0.01, weight_decay=0.01)
+    optimizer = SophiaG(model.parameters(), lr=lr, betas=(0.965, 0.99), rho=0.03, weight_decay=0.0)
     k = 10
     iter_num = 0
 
@@ -285,17 +285,21 @@ def train(args):
 
             loss.backward()
             optimizer.step(bs = args.batch_size)
+            optimizer.zero_grad(set_to_none=True)
 
             train_loss += loss.item()
             num_batches += 1
 
-            if iter_num % k != k - 1:
+            if iter_num % k == k - 1:
+                # Update the Hessian EMA
                 logits = model(b_ids, torch.ones_like(b_mask))
                 samp_dist = torch.distributions.Categorical(logits=logits)
                 y_sample = samp_dist.sample()
                 loss_sampled = F.cross_entropy(logits, y_sample.view(-1), reduction='sum') / args.batch_size
                 loss_sampled.backward()
                 optimizer.update_hessian()
+                optimizer.zero_grad(set_to_none=True)
+
 
             iter_num += 1
 
