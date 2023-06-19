@@ -1,4 +1,5 @@
 from calendar import c
+from hmac import new
 from typing import Callable, Iterable, Tuple
 import math
 
@@ -71,14 +72,10 @@ class AdamW(Optimizer):
                     state["t"] = torch.tensor([0]).to(device)
 
                 if "m" not in state:
-                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(
-                        device
-                    )
+                    state["m"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(device)
 
                 if "v" not in state:
-                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(
-                        device
-                    )
+                    state["v"] = torch.zeros(size=grad.size(), dtype=grad.dtype).to(device)
 
                 state["t"] += 1
 
@@ -98,9 +95,7 @@ class AdamW(Optimizer):
                 #     also given in the pseudo-code in the project description).
                 if correct_bias:
                     alpha = (
-                        alpha
-                        * torch.sqrt(1 - beta_2 ** state["t"])
-                        / (1 - beta_1 ** state["t"])
+                        alpha * torch.sqrt(1 - beta_2 ** state["t"]) / (1 - beta_1 ** state["t"])
                     )
 
                 # 3- Update parameters (p.data).
@@ -114,6 +109,13 @@ class AdamW(Optimizer):
 
 
 class SophiaG(Optimizer):
+    """
+    Sophia: Second-order Clipped Stochastic Optimization.
+    Using Sophia with the Gauss-Newton-Bartlett estimate of the Hessian.state["hessian"]
+
+    https://arxiv.org/pdf/2305.14342.pdf
+    """
+
     def __init__(
         self,
         params: Iterable[torch.nn.parameter.Parameter],
@@ -147,19 +149,23 @@ class SophiaG(Optimizer):
         super(SophiaG, self).__init__(params, defaults)
 
     @torch.no_grad()
-    def update_hessian(self):
+    def update_hessian(self, bs: int):
         for group in self.param_groups:
             _, beta2 = group["betas"]
+            
             for p in group["params"]:
                 if p.grad is None:
                     continue
                 state = self.state[p]
 
-                state["hessian"] = beta2 * state["hessian"] + (
-                    1 - beta2
-                ) * torch.square(p.grad.data)
+                # B · ^g ⊙ ^g
+                new_hess = bs * torch.square(p.grad)
+                hess = state["hessian"]
 
-    def step(self, closure: Callable = None, bs: int = 5120):
+                # Update the hessian estimate (moving average)
+                state["hessian"] = beta2 * hess + (1 - beta2) * new_hess
+
+    def step(self, closure: Callable = None):
         loss = None
 
         if closure is not None:
@@ -188,12 +194,13 @@ class SophiaG(Optimizer):
                 # Access hyperparameters from the `group` dictionary
                 beta1, _ = group["betas"]
                 rho = group["rho"]
-                exp_avg = state["exp_avg"]
                 lr = group["lr"]
                 weight_decay = group["weight_decay"]
+                exp_avg = state["exp_avg"]
+                hess = state["hessian"]
 
                 # Calculation of new weights
-                state["step"] += 1
+                state["step"] += 1  
 
                 # 1 - Perform stepweight decay
                 p.data = p.data - p.data * lr * weight_decay
@@ -202,10 +209,8 @@ class SophiaG(Optimizer):
                 state["exp_avg"] = beta1 * exp_avg + (1 - beta1) * grad
 
                 # 3 - Decay the hessian running average coefficient
-                ratio = (exp_avg.abs() / (rho * bs * state["hessian"] + 1e-15)).clamp(
-                    None, 1
-                )
-
-                p.data = p.data + exp_avg.sign() * ratio * -lr
+                # Clipping the hessian.
+                ratio = (state["exp_avg"] / (hess + 1e-12)).clamp(-rho, rho)
+                p.data = p.data - lr * ratio
 
         return loss
