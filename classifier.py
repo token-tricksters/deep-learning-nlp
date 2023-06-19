@@ -279,6 +279,16 @@ def train(args):
             b_mask = b_mask.to(device)
             b_labels = b_labels.to(device)
 
+            if iter_num % k == 1:
+                # Update the Hessian EMA
+                logits = model(b_ids, torch.ones_like(b_mask))
+                samp_dist = torch.distributions.Categorical(logits=logits)
+                y_sample = samp_dist.sample()
+                loss_sampled = F.cross_entropy(logits, y_sample.view(-1), reduction='sum') / args.batch_size
+                loss_sampled.backward()
+                optimizer.update_hessian()
+                optimizer.zero_grad(set_to_none=True)
+
             optimizer.zero_grad()
             logits = model(b_ids, b_mask)
             loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
@@ -289,17 +299,6 @@ def train(args):
 
             train_loss += loss.item()
             num_batches += 1
-
-            if iter_num % k == k - 1:
-                # Update the Hessian EMA
-                logits = model(b_ids, torch.ones_like(b_mask))
-                samp_dist = torch.distributions.Categorical(logits=logits)
-                y_sample = samp_dist.sample()
-                loss_sampled = F.cross_entropy(logits, y_sample.view(-1), reduction='sum') / args.batch_size
-                loss_sampled.backward()
-                optimizer.update_hessian()
-                optimizer.zero_grad(set_to_none=True)
-
 
             iter_num += 1
 
