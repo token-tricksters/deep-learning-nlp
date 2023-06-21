@@ -273,7 +273,7 @@ def train(args):
 
     lr = args.lr
     # optimizer = AdamW(model.parameters(), lr=lr)
-    optimizer = SophiaG(model.parameters(), lr=lr, betas=(0.965, 0.99), rho=0.03, weight_decay=0.0)
+    optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, weight_decay=0.0)
     hess_interval = 10
     iter_num = 0
 
