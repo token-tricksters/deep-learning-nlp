@@ -301,7 +301,11 @@ def train(args):
 
             optimizer.zero_grad(set_to_none=True)
 
-            if iter_num % hess_interval == hess_interval - 1:
+            # Check if we use the Sophia Optimizer
+            if (
+                hasattr(optimizer, "update_hessian")
+                and iter_num % hess_interval == hess_interval - 1
+            ):
                 # Update the Hessian EMA
                 logits = model(b_ids, b_mask)
                 samp_dist = torch.distributions.Categorical(logits=logits)
