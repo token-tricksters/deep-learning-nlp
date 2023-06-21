@@ -182,7 +182,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            sts_loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            sts_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += sts_loss.item()
             num_batches += 1
@@ -203,7 +203,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            para_loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            para_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += para_loss.item()
             num_batches += 1
@@ -219,13 +219,14 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_sentiment(b_ids, b_mask)
-            sst_loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             train_loss += sst_loss.item()
             num_batches += 1
 
             # Calculate gradient and update weights
             loss = sst_loss + sts_loss + para_loss
+            loss /= 3
             loss.backward()
             optimizer.step()
 
