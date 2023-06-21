@@ -210,7 +210,7 @@ class SophiaG(Optimizer):
 
                 # 3 - Decay the hessian running average coefficient
                 # Clipping the hessian.
-                ratio = (state["exp_avg"] / (hess + 1e-12)).clamp(-rho, rho)
-                p.data.mul_(1 - lr * ratio)
+                ratio = (state["exp_avg"] / (rho * hess + 1e-15)).clamp(-1, 1)
+                p.data.add_(- lr * ratio)
 
         return loss
