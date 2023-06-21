@@ -52,8 +52,6 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = False
             elif config.option == 'finetune':
                 param.requires_grad = True
-        ### TODO
-        raise NotImplementedError
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -166,7 +164,10 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for combined_batch in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+                                   desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            # Train on STS dataset
+            batch = combined_batch[0]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -181,15 +182,13 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            sts_loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item()
+            train_loss += sts_loss.item()
             num_batches += 1
 
-        for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            # Train on PARAPHRASE dataset
+            batch = combined_batch[1]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -204,15 +203,13 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            para_loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item()
+            train_loss += para_loss.item()
             num_batches += 1
 
-        for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            # Train on SST dataset
+            batch = combined_batch[2]
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -222,15 +219,17 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_sentiment(b_ids, b_mask)
-            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            sst_loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
+            train_loss += sst_loss.item()
+            num_batches += 1
+
+            # Calculate gradient and update weights
+            loss = sst_loss + sts_loss + para_loss
             loss.backward()
             optimizer.step()
 
-            train_loss += loss.item()
-            num_batches += 1
-
-        train_loss = train_loss / (num_batches * 3)
+        train_loss = train_loss / num_batches
 
         para_train_acc, _, _, sst_train_acc, _, _, sts_train_acc, _, _ = model_eval_multitask(sst_train_dataloader,
                                                                                               para_train_dataloader,
