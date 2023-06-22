@@ -14,7 +14,7 @@
 
 module load anaconda3
 module load cuda
-source activate dl-gpu # Or whatever you called your environment.
+source activate dnlp2 # Or whatever you called your environment.
 
 # Printing out some info.
 echo "Submitting job with sbatch from directory: ${SLURM_SUBMIT_DIR}"
