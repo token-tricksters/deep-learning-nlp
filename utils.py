@@ -1,4 +1,6 @@
 from typing import Dict, List, Optional, Union, Tuple, BinaryIO
+import fnmatch
+import socket
 import os
 import sys
 import json
@@ -145,7 +147,7 @@ def get_from_cache(
 
   url_to_download = url
   etag = None
-  if not local_files_only:
+  if not 'gpu' in socket.gethostname() and not local_files_only:
     try:
       r = requests.head(url, headers=headers, allow_redirects=False, proxies=proxies, timeout=etag_timeout)
       r.raise_for_status()
@@ -204,6 +206,12 @@ def get_from_cache(
   # From now on, etag is not None.
   if os.path.exists(cache_path) and not force_download:
     return cache_path
+
+  if 'gpu' in socket.gethostname():
+    raise FileNotFoundError(
+            "Cannot find the requested files in the cached path and outgoing traffic has been"
+            " is not enabled."
+    )
 
   # Prevent parallel downloads of the same file with a lock.
   lock_path = cache_path + ".lock"
