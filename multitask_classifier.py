@@ -65,8 +65,8 @@ class MultitaskBERT(nn.Module):
 
         # As per BERT-paper, we return only the embedding of the [CLS] token.. (768, )
         result = self.bert(input_ids, attention_mask)
-        last_hidden_state = result["last_hidden_state"] # (8, 50, 768)
-        return last_hidden_state[:, 0, :]
+        
+        return result["pooler_output"]
 
 
     def predict_sentiment(self, input_ids, attention_mask):
