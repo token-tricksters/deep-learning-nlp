@@ -71,7 +71,6 @@ class MultitaskBERT(nn.Module):
         ### TODO
         raise NotImplementedError
 
-
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
