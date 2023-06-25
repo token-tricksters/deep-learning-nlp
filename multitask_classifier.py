@@ -17,7 +17,7 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask, model_eval_multitask
 
-TQDM_DISABLE = True
+TQDM_DISABLE = False
 
 
 # fix the random seed
@@ -55,7 +55,7 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+        self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
         self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
         self.similarity_linear = nn.Linear(config.hidden_size, 1)
@@ -76,7 +76,7 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        return self.linear_layer(forward(input_ids, attention_mask))
+        return self.linear_layer(self.forward(input_ids, attention_mask))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
@@ -92,7 +92,7 @@ class MultitaskBERT(nn.Module):
 
         diff = torch.cosine_similarity(bert_result_1, bert_result_2)
 
-        return self.paraphrase_linear(diff)
+        return diff
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
@@ -107,8 +107,7 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
         diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
-
-        return self.similarity_linear(diff)
+        return diff
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -135,7 +134,8 @@ def train_multitask(args):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
-    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train, args.para_train,
+    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train,
+                                                                                      args.para_train,
                                                                                       args.sts_train, split='train')
     sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev, args.para_dev,
                                                                                 args.sts_dev, split='train')
@@ -188,7 +188,7 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
         for combined_batch in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-                                   desc=f'train-{epoch}', disable=TQDM_DISABLE):
+                                   total=len(sst_train_dataloader), desc=f'train-{epoch}', disable=TQDM_DISABLE):
             # Train on STS dataset
             batch = combined_batch[0]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
