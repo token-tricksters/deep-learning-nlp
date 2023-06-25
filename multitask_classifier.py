@@ -134,7 +134,9 @@ def save_model(model, optimizer, args, config, filepath):
 def train_multitask(args):
     name = datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
-    loss_idx_value = 0
+    loss_sst_idx_value = 0
+    loss_sts_idx_value = 0
+    loss_para_idx_value = 0
 
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
@@ -192,10 +194,8 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for combined_batch in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-                                   total=len(sst_train_dataloader), desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
             # Train on STS dataset
-            batch = combined_batch[0]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -212,12 +212,16 @@ def train_multitask(args):
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
             sts_loss = F.nll_loss(logits, b_labels.view(-1))
 
+            sts_loss.backward()
+            optimizer.step()
+
             train_loss += sts_loss.item()
-            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_idx_value)
+            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
+            loss_sts_idx_value += 1
             num_batches += 1
 
+        for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
             # Train on PARAPHRASE dataset
-            batch = combined_batch[1]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -234,12 +238,16 @@ def train_multitask(args):
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
             para_loss = F.nll_loss(logits, b_labels.view(-1))
 
+            para_loss.backward()
+            optimizer.step()
+
             train_loss += para_loss.item()
-            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_idx_value)
+            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
+            loss_para_idx_value += 1
             num_batches += 1
 
+        for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
             # Train on SST dataset
-            batch = combined_batch[2]
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -251,16 +259,13 @@ def train_multitask(args):
             logits = model.predict_sentiment(b_ids, b_mask)
             sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            train_loss += sst_loss.item()
-            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_idx_value)
-            loss_idx_value += 1
-            num_batches += 1
-
-            # Calculate gradient and update weights
-            loss = sst_loss + sts_loss + para_loss
-            loss /= 3
-            loss.backward()
+            sst_loss.backward()
             optimizer.step()
+
+            train_loss += sst_loss.item()
+            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
+            loss_sst_idx_value += 1
+            num_batches += 1
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
