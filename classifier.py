@@ -50,10 +50,8 @@ class BertSentimentClassifier(torch.nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        ### TODO
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
-        # raise NotImplementedError
 
     def forward(self, input_ids, attention_mask):
         '''Takes a batch of sentences and returns logits for sentiment classes'''
@@ -62,7 +60,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
         result = self.bert(input_ids, attention_mask)
-        return self.linear_layer(self.dropout(result['pooler_output']))
+        return self.linear_layer(result['pooler_output'])
 
 
 class SentimentDataset(Dataset):
@@ -364,9 +362,12 @@ def get_args():
 
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
-    parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-                        default=1e-5)
 
+    args, _ = parser.parse_known_args()
+
+    parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
+                        default=1e-5 if args.option == 'finetune' else 1e-3)
+    
     args = parser.parse_args()
     return args
 

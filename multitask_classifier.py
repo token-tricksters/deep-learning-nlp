@@ -55,14 +55,20 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
+        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
+        self.similarity_linear = nn.Linear(config.hidden_size, 1)
+
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        ### TODO
-        raise NotImplementedError
+
+        result = self.bert(input_ids, attention_mask)
+        return result['pooler_output']
 
     def predict_sentiment(self, input_ids, attention_mask):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
@@ -70,28 +76,39 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        ### TODO
-        raise NotImplementedError
+        return self.linear_layer(forward(input_ids, attention_mask))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
-        '''Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
+        """
+        Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
-        '''
-        ### TODO
-        raise NotImplementedError
+        """
+
+        bert_result_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_result_2 = self.forward(input_ids_2, attention_mask_2)
+
+        diff = torch.cosine_similarity(bert_result_1, bert_result_2)
+
+        return self.paraphrase_linear(diff)
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
-        '''Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
+        """
+        Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
-        '''
-        ### TODO
-        raise NotImplementedError
+        """
+
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+
+        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
+
+        return self.similarity_linear(diff)
 
 
 def save_model(model, optimizer, args, config, filepath):

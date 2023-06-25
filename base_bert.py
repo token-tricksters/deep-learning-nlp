@@ -110,6 +110,7 @@ class BertPreTrainedModel(nn.Module):
     # Instantiate model.
     model = cls(config, *model_args, **model_kwargs)
 
+    print("Loading checkpoint weights from", resolved_archive_file, "...")
     if state_dict is None:
       try:
         state_dict = torch.load(resolved_archive_file, map_location="cpu")
@@ -118,6 +119,7 @@ class BertPreTrainedModel(nn.Module):
           f"Unable to load weights from pytorch checkpoint file for '{pretrained_model_name_or_path}' "
           f"at '{resolved_archive_file}'"
         )
+    print("Loaded weights.")
 
     missing_keys = []
     unexpected_keys = []
