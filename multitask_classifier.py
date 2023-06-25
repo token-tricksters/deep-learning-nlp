@@ -53,9 +53,6 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        # Ist das wirklich richtig?
-        self.linear = torch.nn.Linear(768, 5)
-
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
@@ -63,10 +60,8 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
 
-        # As per BERT-paper, we return only the embedding of the [CLS] token.. (768, )
         result = self.bert(input_ids, attention_mask)
-        
-        return result["pooler_output"]
+        return result['pooler_output']
 
     def predict_sentiment(self, input_ids, attention_mask):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
@@ -75,11 +70,8 @@ class MultitaskBERT(nn.Module):
         Thus, your output should contain 5 logits for each sentence.
         '''
 
-        # 5-class classification using a linear layer + softmax
-        x = self.forward(input_ids, attention_mask)
-        x = self.linear(x)
-        logits = torch.nn.functional.softmax(x, dim=1)
-        return logits
+        ### TODO
+        raise NotImplementedError
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
