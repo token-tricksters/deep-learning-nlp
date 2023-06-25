@@ -85,10 +85,10 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_result_1 = self.bert(input_ids_1, attention_mask_1)
-        bert_result_2 = self.bert(input_ids_2, attention_mask_2)
+        bert_result_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_result_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.abs(bert_result_1 - bert_result_2)
+        diff = torch.cosine_similarity(bert_result_1, bert_result_2)
 
         return self.paraphrase_linear(diff)
 
@@ -101,10 +101,10 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_result_1 = self.bert(input_ids_1, attention_mask_1)
-        bert_result_2 = self.bert(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.abs(bert_result_1 - bert_result_2)
+        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
 
         return self.similarity_linear(diff)
 
