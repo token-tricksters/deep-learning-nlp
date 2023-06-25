@@ -57,8 +57,8 @@ class MultitaskBERT(nn.Module):
 
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
-        self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
-        self.similarity_linear = nn.Linear(config.hidden_size, 1)
+        self.paraphrase_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.similarity_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -87,11 +87,13 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_result_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_result_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.cosine_similarity(bert_result_1, bert_result_2)
+        combined_bert_embeddings_1 = self.paraphrase_linear(torch.cat([bert_embeddings_1, bert_embeddings_2], dim=1))
+        combined_bert_embeddings_2 = self.paraphrase_linear(torch.cat([bert_embeddings_2, bert_embeddings_1], dim=1))
 
+        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
         return diff
 
     def predict_similarity(self,
@@ -106,8 +108,11 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
-        return diff
+        combined_bert_embeddings_1 = self.similarity_linear(torch.cat([bert_embeddings_1, bert_embeddings_2], dim=1))
+        combined_bert_embeddings_2 = self.similarity_linear(torch.cat([bert_embeddings_2, bert_embeddings_1], dim=1))
+
+        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
+        return diff * 5
 
 
 def save_model(model, optimizer, args, config, filepath):
