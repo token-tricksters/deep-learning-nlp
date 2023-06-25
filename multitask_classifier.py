@@ -54,7 +54,6 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
 
         self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
@@ -75,8 +74,7 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        result = forward(input_ids, attention_mask)
-        return self.linear_layer(self.dropout(result['pooler_output']))
+        return self.linear_layer(forward(input_ids, attention_mask))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
