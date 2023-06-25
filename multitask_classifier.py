@@ -1,11 +1,12 @@
 import time, random, numpy as np, argparse, sys, re, os
-from turtle import forward
+from datetime import datetime
 from types import SimpleNamespace
 
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
 from optimizer import AdamW
@@ -127,6 +128,10 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
+    name = datetime.now().strftime("%Y%m%d-%H%M%S")
+    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
+    loss_idx_value = 0
+
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
@@ -203,6 +208,7 @@ def train_multitask(args):
             sts_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += sts_loss.item()
+            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_idx_value)
             num_batches += 1
 
             # Train on PARAPHRASE dataset
@@ -224,6 +230,7 @@ def train_multitask(args):
             para_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += para_loss.item()
+            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_idx_value)
             num_batches += 1
 
             # Train on SST dataset
@@ -240,6 +247,8 @@ def train_multitask(args):
             sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             train_loss += sst_loss.item()
+            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_idx_value)
+            loss_idx_value += 1
             num_batches += 1
 
             # Calculate gradient and update weights
@@ -249,15 +258,23 @@ def train_multitask(args):
             optimizer.step()
 
         train_loss = train_loss / num_batches
+        writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
         para_train_acc, _, _, sst_train_acc, _, _, sts_train_acc, _, _ = model_eval_multitask(sst_train_dataloader,
                                                                                               para_train_dataloader,
                                                                                               sts_train_dataloader,
                                                                                               model, device)
+        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+
         para_dev_acc, _, _, sst_dev_acc, _, _, sts_dev_acc, _, _ = model_eval_multitask(sst_dev_dataloader,
                                                                                         para_dev_dataloader,
                                                                                         sts_dev_dataloader, model,
                                                                                         device)
+        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if para_dev_acc > best_dev_acc_para and sst_dev_acc > best_dev_acc_sst and sts_dev_acc > best_dev_acc_sts:
             best_dev_acc_para = para_dev_acc
@@ -266,6 +283,9 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
+
+        writer.add_scalar("acc/train/Epochs", train_acc, epoch)
+        writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
             f"Epoch {epoch}: train loss :: {train_loss :.3f}, combined train acc :: {train_acc :.3f}, combined dev acc :: {dev_acc :.3f}")
 
@@ -313,6 +333,8 @@ def get_args():
 
     parser.add_argument("--sts_dev_out", type=str, default="predictions/sts-dev-output.csv")
     parser.add_argument("--sts_test_out", type=str, default="predictions/sts-test-output.csv")
+
+    parser.add_argument("--logdir", type=str, default="logdir")
 
     # hyper parameters
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)

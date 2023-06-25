@@ -1,4 +1,5 @@
 import time, random, numpy as np, argparse, sys, re, os
+from datetime import datetime
 from types import SimpleNamespace
 import csv
 
@@ -7,6 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
+from torch.utils.tensorboard import SummaryWriter
 
 # change it with respect to the original model
 from tokenizer import BertTokenizer
@@ -230,6 +232,10 @@ def save_model(model, optimizer, args, config, filepath):
 
 
 def train(args):
+    name = datetime.now().strftime("%Y%m%d-%H%M%S")
+    writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
+    loss_idx_value = 0
+
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
@@ -281,12 +287,20 @@ def train(args):
             optimizer.step()
 
             train_loss += loss.item()
+            writer.add_scalar("Loss/Minibatches", loss.item(), loss_idx_value)
+            loss_idx_value += 1
             num_batches += 1
 
         train_loss = train_loss / (num_batches)
+        writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
         train_acc, train_f1, *_ = model_eval(train_dataloader, model, device)
+        writer.add_scalar("Accuracy/train/Epochs", train_acc, epoch)
+        writer.add_scalar("F1_score/train/Epochs", train_f1, epoch)
+
         dev_acc, dev_f1, *_ = model_eval(dev_dataloader, model, device)
+        writer.add_scalar("Accuracy/dev/Epochs", dev_acc, epoch)
+        writer.add_scalar("F1_score/dev/Epochs", dev_f1, epoch)
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
@@ -294,6 +308,7 @@ def train(args):
 
         print(
             f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+    writer.close()
 
 
 def test(args):
@@ -343,6 +358,8 @@ def get_args():
     parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
     parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
 
+    parser.add_argument("--logdir", type=str, default="logdir")
+
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
 
@@ -373,7 +390,8 @@ if __name__ == "__main__":
         test='data/ids-sst-test-student.csv',
         option=args.option,
         dev_out='predictions/' + args.option + '-sst-dev-out.csv',
-        test_out='predictions/' + args.option + '-sst-test-out.csv'
+        test_out='predictions/' + args.option + '-sst-test-out.csv',
+        logdir=args.logdir
     )
 
     train(config)
