@@ -1,4 +1,5 @@
 import time, random, numpy as np, argparse, sys, re, os
+from datetime import datetime
 from types import SimpleNamespace
 import csv
 
@@ -7,6 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
+from torch.utils.tensorboard import SummaryWriter
 
 # change it with respect to the original model
 from tokenizer import BertTokenizer
@@ -48,10 +50,8 @@ class BertSentimentClassifier(torch.nn.Module):
             elif config.option == "finetune":
                 param.requires_grad = True
 
-        ### TODO
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
-        # raise NotImplementedError
 
     def forward(self, input_ids, attention_mask):
         """Takes a batch of sentences and returns logits for sentiment classes"""
@@ -60,7 +60,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
         result = self.bert(input_ids, attention_mask)
-        return self.linear_layer(self.dropout(result["pooler_output"]))
+        return self.linear_layer(result['pooler_output'])
 
 
 class SentimentDataset(Dataset):
@@ -241,7 +241,11 @@ def save_model(model, optimizer, args, config, filepath):
 
 
 def train(args):
-    device = torch.device("cuda") if args.use_gpu else torch.device("cpu")
+    name = datetime.now().strftime("%Y%m%d-%H%M%S")
+    writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
+    loss_idx_value = 0
+
+    device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
     train_data, num_labels = load_data(args.train, "train")
@@ -319,21 +323,29 @@ def train(args):
                 optimizer.zero_grad(set_to_none=True)
 
             train_loss += loss.item()
+            writer.add_scalar("Loss/Minibatches", loss.item(), loss_idx_value)
+            loss_idx_value += 1
             num_batches += 1
             iter_num += 1
 
         train_loss = train_loss / (num_batches)
+        writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
         train_acc, train_f1, *_ = model_eval(train_dataloader, model, device)
+        writer.add_scalar("Accuracy/train/Epochs", train_acc, epoch)
+        writer.add_scalar("F1_score/train/Epochs", train_f1, epoch)
+
         dev_acc, dev_f1, *_ = model_eval(dev_dataloader, model, device)
+        writer.add_scalar("Accuracy/dev/Epochs", dev_acc, epoch)
+        writer.add_scalar("F1_score/dev/Epochs", dev_f1, epoch)
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
             save_model(model, optimizer, args, config, args.filepath)
 
         print(
-            f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}"
-        )
+            f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+    writer.close()
 
 
 def test(args):
@@ -397,17 +409,16 @@ def get_args():
     parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
     parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
 
-    parser.add_argument(
-        "--batch_size", help="sst: 64, cfimdb: 8 can fit a 12GB GPU", type=int, default=8
-    )
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
-    parser.add_argument(
-        "--lr",
-        type=float,
-        help="learning rate (AdamW), default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=1e-5,
-    )
+    parser.add_argument("--logdir", type=str, default="logdir")
 
+    parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+
+    args, _ = parser.parse_known_args()
+
+    parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
+                        default=1e-5 if args.option == 'finetune' else 1e-3)
+    
     args = parser.parse_args()
     return args
 
@@ -429,8 +440,9 @@ if __name__ == "__main__":
         dev="data/ids-sst-dev.csv",
         test="data/ids-sst-test-student.csv",
         option=args.option,
-        dev_out="predictions/" + args.option + "-sst-dev-out.csv",
-        test_out="predictions/" + args.option + "-sst-test-out.csv",
+        dev_out='predictions/' + args.option + '-sst-dev-out.csv',
+        test_out='predictions/' + args.option + '-sst-test-out.csv',
+        logdir=args.logdir
     )
 
     train(config)

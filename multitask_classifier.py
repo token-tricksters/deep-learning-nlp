@@ -1,10 +1,12 @@
 import time, random, numpy as np, argparse, sys, re, os
+from datetime import datetime
 from types import SimpleNamespace
 
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
 from optimizer import AdamW
@@ -53,14 +55,20 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
+        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
+        self.similarity_linear = nn.Linear(config.hidden_size, 1)
+
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        ### TODO
-        raise NotImplementedError
+
+        result = self.bert(input_ids, attention_mask)
+        return result['pooler_output']
 
     def predict_sentiment(self, input_ids, attention_mask):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
@@ -68,28 +76,39 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        ### TODO
-        raise NotImplementedError
+        return self.linear_layer(forward(input_ids, attention_mask))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
-        '''Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
+        """
+        Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
-        '''
-        ### TODO
-        raise NotImplementedError
+        """
+
+        bert_result_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_result_2 = self.forward(input_ids_2, attention_mask_2)
+
+        diff = torch.cosine_similarity(bert_result_1, bert_result_2)
+
+        return self.paraphrase_linear(diff)
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
-        '''Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
+        """
+        Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
-        '''
-        ### TODO
-        raise NotImplementedError
+        """
+
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+
+        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
+
+        return self.similarity_linear(diff)
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -109,6 +128,10 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
+    name = datetime.now().strftime("%Y%m%d-%H%M%S")
+    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
+    loss_idx_value = 0
+
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
@@ -185,6 +208,7 @@ def train_multitask(args):
             sts_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += sts_loss.item()
+            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_idx_value)
             num_batches += 1
 
             # Train on PARAPHRASE dataset
@@ -206,6 +230,7 @@ def train_multitask(args):
             para_loss = F.nll_loss(logits, b_labels.view(-1))
 
             train_loss += para_loss.item()
+            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_idx_value)
             num_batches += 1
 
             # Train on SST dataset
@@ -222,6 +247,8 @@ def train_multitask(args):
             sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             train_loss += sst_loss.item()
+            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_idx_value)
+            loss_idx_value += 1
             num_batches += 1
 
             # Calculate gradient and update weights
@@ -231,15 +258,23 @@ def train_multitask(args):
             optimizer.step()
 
         train_loss = train_loss / num_batches
+        writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
         para_train_acc, _, _, sst_train_acc, _, _, sts_train_acc, _, _ = model_eval_multitask(sst_train_dataloader,
                                                                                               para_train_dataloader,
                                                                                               sts_train_dataloader,
                                                                                               model, device)
+        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+
         para_dev_acc, _, _, sst_dev_acc, _, _, sts_dev_acc, _, _ = model_eval_multitask(sst_dev_dataloader,
                                                                                         para_dev_dataloader,
                                                                                         sts_dev_dataloader, model,
                                                                                         device)
+        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if para_dev_acc > best_dev_acc_para and sst_dev_acc > best_dev_acc_sst and sts_dev_acc > best_dev_acc_sts:
             best_dev_acc_para = para_dev_acc
@@ -248,6 +283,9 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
+
+        writer.add_scalar("acc/train/Epochs", train_acc, epoch)
+        writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
             f"Epoch {epoch}: train loss :: {train_loss :.3f}, combined train acc :: {train_acc :.3f}, combined dev acc :: {dev_acc :.3f}")
 
@@ -295,6 +333,8 @@ def get_args():
 
     parser.add_argument("--sts_dev_out", type=str, default="predictions/sts-dev-output.csv")
     parser.add_argument("--sts_test_out", type=str, default="predictions/sts-test-output.csv")
+
+    parser.add_argument("--logdir", type=str, default="logdir")
 
     # hyper parameters
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
