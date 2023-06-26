@@ -132,8 +132,6 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
-    name = datetime.now().strftime("%Y%m%d-%H%M%S")
-    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
     loss_sst_idx_value = 0
     loss_sts_idx_value = 0
     loss_para_idx_value = 0
@@ -188,6 +186,9 @@ def train_multitask(args):
     best_dev_acc_para = 0
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
+
+    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
+    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
