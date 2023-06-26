@@ -11,8 +11,8 @@ class AdamW(Optimizer):
             params: Iterable[torch.nn.parameter.Parameter],
             lr: float = 1e-3,
             betas: Tuple[float, float] = (0.9, 0.999),
-            eps: float = 1e-6,
-            weight_decay: float = 0.0,
+            eps: float = 1e-8,
+            weight_decay: float = 1e-2,
             correct_bias: bool = True,
     ):
         if lr < 0.0:
@@ -23,6 +23,8 @@ class AdamW(Optimizer):
             raise ValueError("Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[1]))
         if not 0.0 <= eps:
             raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
+        if not 0.0 <= weight_decay:
+            raise ValueError("Invalid weight_decay value: {} - should be >= 0.0".format(weight_decay))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, correct_bias=correct_bias)
         super().__init__(params, defaults)
 
@@ -37,7 +39,7 @@ class AdamW(Optimizer):
                 if p.grad is None:
                     continue
 
-                grad = p.grad.data
+                grad = p.grad
 
                 if grad.is_sparse:
                     raise RuntimeError("Adam does not support sparse gradients, please consider SparseAdam instead")
@@ -76,22 +78,22 @@ class AdamW(Optimizer):
 
                 # 1- Update first and second moments of the gradients
 
-                state["m"] = beta_1 * state["m"] + (1 - beta_1) * grad
-                state["v"] = beta_2 * state["v"] + (1 - beta_2) * torch.square(grad)
+                state["m"].mul_(beta_1).add_(grad, alpha=1 - beta_1)
+
+                state["v"].mul_(beta_2).addcmul_(grad, grad, value=1 - beta_2)
 
                 # 2- Apply bias correction
                 #    (using the "efficient version" given in https://arxiv.org/abs/1412.6980;
                 #     also given in the pseudo-code in the project description).
                 if correct_bias:
-                    alpha = alpha * torch.sqrt(1 - beta_2 ** state["t"]) / (1 - beta_1 ** state["t"])
+                    alpha *= torch.sqrt(1 - beta_2 ** state["t"]) / (1 - beta_1 ** state["t"])
 
                 # 3- Update parameters (p.data).
-
-                p.data = p.data - alpha * state["m"] / (torch.sqrt(state["v"]) + eps)
+                p.data.sub_(alpha * state["m"] / (torch.sqrt(state["v"]) + eps))
 
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
+                p.data.sub_(group["lr"] * p.data * weight_decay)
 
-                p.data = p.data - group["lr"] * p.data * weight_decay
 
         return loss
