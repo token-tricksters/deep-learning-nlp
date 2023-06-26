@@ -1,4 +1,5 @@
 import time, random, numpy as np, argparse, sys, re, os
+from contextlib import nullcontext
 from datetime import datetime
 from types import SimpleNamespace
 import csv
@@ -271,13 +272,14 @@ def train(args):
     }
 
     config = SimpleNamespace(**config)
+    ctx = nullcontext() if not args.use_gpu else torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
 
     model = BertSentimentClassifier(config)
     model = model.to(device)
 
     lr = args.lr
     # optimizer = AdamW(model.parameters(), lr=lr)
-    optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, weight_decay=0.0)
+    optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1)
     hess_interval = 10
     iter_num = 0
 
@@ -296,11 +298,13 @@ def train(args):
             b_mask = b_mask.to(device)
             b_labels = b_labels.to(device)
 
-            logits = model(b_ids, b_mask)
-            loss = F.cross_entropy(logits, b_labels.view(-1))
+            with ctx:
+                logits = model(b_ids, b_mask)
+                loss = F.cross_entropy(logits, b_labels.view(-1))
             loss.backward()
 
-            # Potentially: Clip gradients using nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            # Potentially: Clip gradients using
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
             optimizer.zero_grad(set_to_none=True)
@@ -311,13 +315,15 @@ def train(args):
                 and iter_num % hess_interval == hess_interval - 1
             ):
                 # Update the Hessian EMA
-                logits = model(b_ids, b_mask)
-                samp_dist = torch.distributions.Categorical(logits=logits)
-                y_sample = samp_dist.sample()
-                loss_sampled = F.cross_entropy(logits, y_sample.view(-1))
+                with ctx:
+                    logits = model(b_ids, b_mask)
+                    samp_dist = torch.distributions.Categorical(logits=logits)
+                    y_sample = samp_dist.sample()
+                    loss_sampled = F.cross_entropy(logits, y_sample.view(-1))
                 loss_sampled.backward()
 
-                # Potentially: Clip gradients using nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                # Potentially: Clip gradients using
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.update_hessian(bs=args.batch_size)
 
                 optimizer.zero_grad(set_to_none=True)

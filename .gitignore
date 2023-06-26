@@ -2,3 +2,4 @@
 __pycache__
 sst-classifier.pt
 logdir
+slurm_files
