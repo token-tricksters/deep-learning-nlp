@@ -28,4 +28,4 @@ python -m torch.utils.collect_env
 nvcc -V
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --use_gpu --lr 1e-3
+python -u multitask_classifier.py --use_gpu --use_gpu --lr 1e-3 --batch_size 128
