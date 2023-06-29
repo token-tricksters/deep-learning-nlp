@@ -57,8 +57,8 @@ class MultitaskBERT(nn.Module):
 
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
-        self.paraphrase_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
-        self.similarity_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        self.similarity_linear = nn.Linear(config.hidden_size, config.hidden_size)
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -90,8 +90,8 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        combined_bert_embeddings_1 = self.paraphrase_linear(torch.cat([bert_embeddings_1, bert_embeddings_2], dim=1))
-        combined_bert_embeddings_2 = self.paraphrase_linear(torch.cat([bert_embeddings_2, bert_embeddings_1], dim=1))
+        combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
+        combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
 
         diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
         return diff
@@ -108,8 +108,8 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        combined_bert_embeddings_1 = self.similarity_linear(torch.cat([bert_embeddings_1, bert_embeddings_2], dim=1))
-        combined_bert_embeddings_2 = self.similarity_linear(torch.cat([bert_embeddings_2, bert_embeddings_1], dim=1))
+        combined_bert_embeddings_1 = self.similarity_linear(bert_embeddings_1)
+        combined_bert_embeddings_2 = self.similarity_linear(bert_embeddings_2)
 
         diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
         return diff * 5
@@ -211,7 +211,8 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            sts_loss = F.nll_loss(logits, b_labels.view(-1))
+            b_labels = b_labels.to(torch.float32)
+            sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
             sts_loss.backward()
             optimizer.step()
@@ -237,7 +238,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            para_loss = F.nll_loss(logits, b_labels.view(-1))
+            para_loss = F.mse_loss(logits, b_labels.view(-1))
 
             para_loss.backward()
             optimizer.step()
