@@ -238,6 +238,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            b_labels = b_labels.to(torch.float32)
             para_loss = F.mse_loss(logits, b_labels.view(-1))
 
             para_loss.backward()
