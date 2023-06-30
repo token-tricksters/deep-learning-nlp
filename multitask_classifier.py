@@ -17,7 +17,7 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask, model_eval_multitask
 
-TQDM_DISABLE = True
+TQDM_DISABLE = False
 
 
 # fix the random seed
@@ -55,10 +55,10 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+        self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
-        self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
-        self.similarity_linear = nn.Linear(config.hidden_size, 1)
+        self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        self.similarity_linear = nn.Linear(config.hidden_size, config.hidden_size)
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -76,7 +76,7 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        return self.linear_layer(forward(input_ids, attention_mask))
+        return self.linear_layer(self.forward(input_ids, attention_mask))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
@@ -87,12 +87,14 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_result_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_result_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.cosine_similarity(bert_result_1, bert_result_2)
+        combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
+        combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
 
-        return self.paraphrase_linear(diff)
+        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
+        return diff
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
@@ -106,9 +108,11 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
+        combined_bert_embeddings_1 = self.similarity_linear(bert_embeddings_1)
+        combined_bert_embeddings_2 = self.similarity_linear(bert_embeddings_2)
 
-        return self.similarity_linear(diff)
+        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
+        return diff * 5
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -128,14 +132,15 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
-    name = datetime.now().strftime("%Y%m%d-%H%M%S")
-    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
-    loss_idx_value = 0
+    loss_sst_idx_value = 0
+    loss_sts_idx_value = 0
+    loss_para_idx_value = 0
 
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
-    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train, args.para_train,
+    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train,
+                                                                                      args.para_train,
                                                                                       args.sts_train, split='train')
     sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev, args.para_dev,
                                                                                 args.sts_dev, split='train')
@@ -182,15 +187,16 @@ def train_multitask(args):
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
 
+    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
+    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
+
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0
         num_batches = 0
-        for combined_batch in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-                                   desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
             # Train on STS dataset
-            batch = combined_batch[0]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -205,14 +211,19 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            sts_loss = F.nll_loss(logits, b_labels.view(-1))
+            b_labels = b_labels.to(torch.float32)
+            sts_loss = F.mse_loss(logits, b_labels.view(-1))
+
+            sts_loss.backward()
+            optimizer.step()
 
             train_loss += sts_loss.item()
-            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_idx_value)
+            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
+            loss_sts_idx_value += 1
             num_batches += 1
 
+        for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
             # Train on PARAPHRASE dataset
-            batch = combined_batch[1]
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
@@ -227,14 +238,19 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            para_loss = F.nll_loss(logits, b_labels.view(-1))
+            b_labels = b_labels.to(torch.float32)
+            para_loss = F.mse_loss(logits, b_labels.view(-1))
+
+            para_loss.backward()
+            optimizer.step()
 
             train_loss += para_loss.item()
-            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_idx_value)
+            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
+            loss_para_idx_value += 1
             num_batches += 1
 
+        for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
             # Train on SST dataset
-            batch = combined_batch[2]
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -246,16 +262,13 @@ def train_multitask(args):
             logits = model.predict_sentiment(b_ids, b_mask)
             sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            train_loss += sst_loss.item()
-            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_idx_value)
-            loss_idx_value += 1
-            num_batches += 1
-
-            # Calculate gradient and update weights
-            loss = sst_loss + sts_loss + para_loss
-            loss /= 3
-            loss.backward()
+            sst_loss.backward()
             optimizer.step()
+
+            train_loss += sst_loss.item()
+            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
+            loss_sst_idx_value += 1
+            num_batches += 1
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)

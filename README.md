@@ -25,6 +25,27 @@ If you want to update using the upstream repository use the following commands
 git fetch upstream
 git rebase upstream/main
 ````
+
+## Usage
+
+To run the multitask-classifier on the cluster you have to use
+````
+sbatch run_train.sh
+````
+
+If you want to use tensorboard you can forward it to your local machine
+````
+ssh -L localhost:16006:localhost:6006 bzkurs42@glogin9.hlrn.de
+module load anaconda3
+source activate dnlp2
+tensorboard --logdir logdir
+````
+
+If you want to test the multitask-classifier you can create an interactive session with
+````
+srun -p grete:shared --pty -G A100:1 --interactive bash
+````
+
 ## Introduction
 
 This is the starting code for the default final project for the Deep Learning for Natural Language Processing course at the University of Göttingen. You can find the handout [here](https://1drv.ms/b/s!AkgwFZyClZ_qk718ObYhi8tF4cjSSQ?e=3gECnf)
