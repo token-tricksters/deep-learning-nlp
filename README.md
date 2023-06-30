@@ -43,7 +43,7 @@ tensorboard --logdir logdir
 
 If you want to test the multitask-classifier you can create an interactive session with
 ````
-#TODO
+srun -p grete:shared --pty -G A100:1 --interactive bash
 ````
 
 ## Introduction
