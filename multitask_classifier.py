@@ -178,6 +178,8 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
+
     best_dev_acc_para = 0
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
@@ -284,6 +286,9 @@ def train_multitask(args):
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
 
+        scheduler.step(dev_acc)
+
+        writer.add_scalar("lr", optimizer.param_groups[0]['lr'])
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
