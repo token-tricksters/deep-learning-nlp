@@ -301,7 +301,7 @@ def train_multitask(args):
 
         scheduler.step(dev_acc)
 
-        writer.add_scalar("lr", optimizer.param_groups[0]['lr'])
+        writer.add_scalar("lr", optimizer.param_groups[0]['lr'], epoch)
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
