@@ -197,7 +197,7 @@ def train_multitask(args):
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
 
-    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
+    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
 
     # Run for the specified number of epochs
@@ -385,7 +385,8 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt'  # save path
+    # TODO Add optimizer after Sophia merge
+    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt'  # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
