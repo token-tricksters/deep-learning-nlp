@@ -454,7 +454,8 @@ if __name__ == "__main__":
         option=args.option,
         dev_out='predictions/' + args.option + '-sst-dev-out.csv',
         test_out='predictions/' + args.option + '-sst-test-out.csv',
-        logdir=args.logdir
+        logdir=args.logdir,
+        optimizer=args.optimizer
     )
 
     train(config)
