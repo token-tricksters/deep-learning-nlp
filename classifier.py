@@ -278,8 +278,11 @@ def train(args):
     model = model.to(device)
 
     lr = args.lr
-    # optimizer = AdamW(model.parameters(), lr=lr)
-    optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1)
+    if args.optimizer == "adamw":
+        optimizer = AdamW(model.parameters(), lr=lr)
+    elif args.optimizer == "sophiag":
+        optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1)
+
     hess_interval = 10
     iter_num = 0
 
@@ -419,9 +422,11 @@ def get_args():
 
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+    parser.add_argument("--optimizer", type=str, default="adamw")
 
     args, _ = parser.parse_known_args()
 
+    # TODO: Possibly change defaults based on optimizer
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5 if args.option == 'finetune' else 1e-3)
     
