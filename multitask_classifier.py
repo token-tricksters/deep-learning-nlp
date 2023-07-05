@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import time, random, numpy as np, argparse, sys, re, os
 from datetime import datetime
 from types import SimpleNamespace
@@ -182,11 +183,15 @@ def train_multitask(args):
     model = model.to(device)
 
     lr = args.lr
+    hess_interval = 10
+    ctx = nullcontext() if not args.use_gpu else torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
 
     if args.optimizer == "adamw":
         optimizer = AdamW(model.parameters(), lr=lr)
     elif args.optimizer == "sophiag":
         optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1)
+    else:
+        raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
     best_dev_acc_para = 0
     best_dev_acc_sst = 0
@@ -206,21 +211,32 @@ def train_multitask(args):
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+            optimizer.zero_grad()
+            with ctx:
+                logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                b_labels = b_labels.to(torch.float32)
+                sts_loss = F.mse_loss(logits, b_labels.view(-1))
+                sts_loss.backward()
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
-
-            b_labels = b_labels.to(device)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
 
             optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            sts_loss = F.mse_loss(logits, b_labels.view(-1))
+             # Check if we use the Sophia Optimizer
+            if (args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1):
+                # Update the Hessian EMA
+                with ctx:
+                    logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                    samp_dist = torch.distributions.Categorical(logits=logits)
+                    y_sample = samp_dist.sample()
+                    # add a dimension, now logits shape is [1, bs] and logits is [1] (Which is wrong TODO)
+                    loss_sampled = F.cross_entropy(logits.unsqueeze(0), y_sample.view(-1))
+                loss_sampled.backward()
 
-            sts_loss.backward()
-            optimizer.step()
+                # Potentially: Clip gradients using
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.update_hessian(bs=args.batch_size)
+                optimizer.zero_grad(set_to_none=True)
 
             train_loss += sts_loss.item()
             writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
@@ -233,21 +249,33 @@ def train_multitask(args):
                 batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
                 batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+            optimizer.zero_grad()
+            with ctx:
+                logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                b_labels = b_labels.to(torch.float32)
+                para_loss = F.mse_loss(logits, b_labels.view(-1))
+            para_loss.backward()
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
-
-            b_labels = b_labels.to(device)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
 
             optimizer.zero_grad()
-            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            para_loss = F.mse_loss(logits, b_labels.view(-1))
+            # Check if we use the Sophia Optimizer
+            if (args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1):
+                # Update the Hessian EMA
+                with ctx:
+                    logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                    samp_dist = torch.distributions.Categorical(logits=logits)
+                    y_sample = samp_dist.sample()
+                    # add a dimension, now logits shape is [1, bs] and logits is [1] (Which is wrong TODO)
+                    loss_sampled = F.cross_entropy(logits.unsqueeze(0), y_sample.view(-1))
+                loss_sampled.backward()
 
-            para_loss.backward()
-            optimizer.step()
+                # Potentially: Clip gradients using
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.update_hessian(bs=args.batch_size)
+                optimizer.zero_grad(set_to_none=True)
+
 
             train_loss += para_loss.item()
             writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
@@ -259,16 +287,30 @@ def train_multitask(args):
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
-            b_ids = b_ids.to(device)
-            b_mask = b_mask.to(device)
-            b_labels = b_labels.to(device)
+            optimizer.zero_grad()
+            with ctx:
+                logits = model.predict_sentiment(b_ids, b_mask)
+                sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+            sst_loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
 
             optimizer.zero_grad()
-            logits = model.predict_sentiment(b_ids, b_mask)
-            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+            # Check if we use the Sophia Optimizer
+            if (args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1):
+                # Update the Hessian EMA
+                with ctx:
+                    logits = model.predict_sentiment(b_ids, b_mask)
+                    samp_dist = torch.distributions.Categorical(logits=logits)
+                    y_sample = samp_dist.sample()
+                    loss_sampled = F.cross_entropy(logits, y_sample.view(-1))
+                loss_sampled.backward()
 
-            sst_loss.backward()
-            optimizer.step()
+                # Potentially: Clip gradients using
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.update_hessian(bs=args.batch_size)
+                optimizer.zero_grad(set_to_none=True)
 
             train_loss += sst_loss.item()
             writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
