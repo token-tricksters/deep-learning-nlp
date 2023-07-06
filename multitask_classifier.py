@@ -55,10 +55,27 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
+        self.activation = nn.ReLU()
+        # Similarity task
+        sts_hidden_size = 256
+        self.similarity_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.similarity_representation2 = nn.Linear(config.hidden_size, config.hidden_size)
+
+        self.similarity_merge1 = nn.Linear(config.hidden_size, sts_hidden_size)
+        self.similarity_merge2 = nn.Linear(sts_hidden_size, sts_hidden_size)
+        self.similarity_output = nn.Linear(sts_hidden_size, 1)
+
+        # Sentiment task
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
-        self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
-        self.similarity_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        # Paraphrase task
+        para_hidden_size = 256
+        self.para_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.para_representation2 = nn.Linear(config.hidden_size, config.hidden_size)
+
+        self.para_merge1 = nn.Linear(config.hidden_size, sts_hidden_size)
+        self.para_merge2 = nn.Linear(sts_hidden_size, sts_hidden_size)
+        self.para_output = nn.Linear(sts_hidden_size, 2)
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -90,11 +107,21 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
-        combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
+        embeddings_1_representation = self.activation(self.para_representation1(bert_embeddings_1))
+        embeddings_2_representation = self.activation(self.para_representation1(bert_embeddings_2))
 
-        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
-        return diff
+        embeddings_1_representation = self.activation(
+            self.para_representation2(bert_embeddings_1)) + bert_embeddings_1
+        embeddings_2_representation = self.activation(
+            self.para_representation2(bert_embeddings_2)) + bert_embeddings_2
+
+        merged_representation_1 = self.activation(
+            self.para_merge1(embeddings_1_representation + embeddings_2_representation))
+        merged_representation_2 = self.activation(
+            self.para_merge2(merged_representation_1))
+        output = self.para_output(merged_representation_2)
+
+        return output
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
@@ -108,11 +135,21 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        combined_bert_embeddings_1 = self.similarity_linear(bert_embeddings_1)
-        combined_bert_embeddings_2 = self.similarity_linear(bert_embeddings_2)
+        embeddings_1_representation = self.activation(self.similarity_representation1(bert_embeddings_1))
+        embeddings_2_representation = self.activation(self.similarity_representation1(bert_embeddings_2))
 
-        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
-        return diff * 5
+        embeddings_1_representation = self.activation(
+            self.similarity_representation2(bert_embeddings_1)) + bert_embeddings_1
+        embeddings_2_representation = self.activation(
+            self.similarity_representation2(bert_embeddings_2)) + bert_embeddings_2
+
+        merged_representation_1 = self.activation(
+            self.similarity_merge1(embeddings_1_representation + embeddings_2_representation))
+        merged_representation_2 = self.activation(
+            self.similarity_merge2(merged_representation_1))
+        output = self.similarity_output(merged_representation_2)
+
+        return output.squeeze()
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -238,8 +275,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            para_loss = F.mse_loss(logits, b_labels.view(-1))
+            para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             para_loss.backward()
             optimizer.step()
