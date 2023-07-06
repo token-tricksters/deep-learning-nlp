@@ -116,7 +116,7 @@ class MultitaskBERT(nn.Module):
             self.para_representation2(bert_embeddings_2)) + bert_embeddings_2
 
         merged_representation_1 = self.activation(
-            self.para_merge1(embeddings_1_representation + embeddings_2_representation))
+            self.para_merge1(embeddings_1_representation - embeddings_2_representation))
         merged_representation_2 = self.activation(
             self.para_merge2(merged_representation_1))
         output = self.para_output(merged_representation_2)
@@ -144,7 +144,7 @@ class MultitaskBERT(nn.Module):
             self.similarity_representation2(bert_embeddings_2)) + bert_embeddings_2
 
         merged_representation_1 = self.activation(
-            self.similarity_merge1(embeddings_1_representation + embeddings_2_representation))
+            self.similarity_merge1(embeddings_1_representation - embeddings_2_representation))
         merged_representation_2 = self.activation(
             self.similarity_merge2(merged_representation_1))
         output = self.similarity_output(merged_representation_2)
