@@ -32,7 +32,7 @@ def seed_everything(seed=11711):
     torch.backends.cudnn.deterministic = True
 
 
-BERT_HIDDEN_SIZE = 768
+BERT_HIDDEN_SIZE = 1024
 N_SENTIMENT_CLASSES = 5
 
 
@@ -49,7 +49,7 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.bert = BertModel.from_pretrained('bert-large-uncased')
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -213,7 +213,7 @@ def train_multitask(args):
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
               'num_labels': num_labels,
-              'hidden_size': 768,
+              'hidden_size': 1024,
               'data_dir': '.',
               'option': args.option}
 
