@@ -209,7 +209,7 @@ def train_multitask(args):
                                       collate_fn=sts_train_data.collate_fn)
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sts_dev_data.collate_fn)
-    
+
     total_num_batches = len(sst_train_dataloader) + len(para_train_dataloader) + len(sts_train_dataloader)
 
     # Init model
@@ -228,7 +228,7 @@ def train_multitask(args):
     optimizer = AdamW(model.parameters(), lr=lr)
 
     if args.scheduler == 'plateau':
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=5, verbose=True)
     elif args.scheduler == 'cosine':
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 1, 1)
     else:
