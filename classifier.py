@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
+from layers.AttentionLayer import AttentionLayer
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
@@ -51,6 +52,7 @@ class BertSentimentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.attention_layer = AttentionLayer(config.hidden_size)
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids, attention_mask):
@@ -60,7 +62,8 @@ class BertSentimentClassifier(torch.nn.Module):
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
         result = self.bert(input_ids, attention_mask)
-        return self.linear_layer(result['pooler_output'])
+        attention_result = self.attention_layer(result['last_hidden_state'])
+        return self.linear_layer(attention_result)
 
 
 class SentimentDataset(Dataset):
@@ -368,7 +371,7 @@ def get_args():
 
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5 if args.option == 'finetune' else 1e-3)
-    
+
     args = parser.parse_args()
     return args
 

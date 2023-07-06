@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
+from layers.AttentionLayer import AttentionLayer
 from optimizer import AdamW
 from tqdm import tqdm
 
@@ -66,6 +67,8 @@ class MultitaskBERT(nn.Module):
         self.similarity_output = nn.Linear(sts_hidden_size, 1)
 
         # Sentiment task
+        self.attention_layer = AttentionLayer(config.hidden_size)
+
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
         # Paraphrase task
@@ -85,7 +88,8 @@ class MultitaskBERT(nn.Module):
         # (e.g., by adding other layers).
 
         result = self.bert(input_ids, attention_mask)
-        return result['pooler_output']
+        attention_result = self.attention_layer(result["last_hidden_state"])
+        return attention_result
 
     def predict_sentiment(self, input_ids, attention_mask):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
