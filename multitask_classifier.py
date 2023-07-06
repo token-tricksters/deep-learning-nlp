@@ -209,6 +209,8 @@ def train_multitask(args):
                                       collate_fn=sts_train_data.collate_fn)
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sts_dev_data.collate_fn)
+    
+    total_num_batches = len(sst_train_dataloader) + len(para_train_dataloader) + len(sts_train_dataloader)
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
@@ -224,11 +226,19 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
+
+    if args.scheduler == 'plateau':
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
+    elif args.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 1, 1)
+    else:
+        scheduler = None
+
     best_dev_acc_para = 0
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
 
-    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
+    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
 
     # Run for the specified number of epochs
@@ -258,6 +268,9 @@ def train_multitask(args):
             sts_loss.backward()
             optimizer.step()
 
+            if args.scheduler == 'cosine':
+                scheduler.step(epoch + num_batches / total_num_batches)
+
             train_loss += sts_loss.item()
             writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
             loss_sts_idx_value += 1
@@ -284,6 +297,9 @@ def train_multitask(args):
             para_loss.backward()
             optimizer.step()
 
+            if args.scheduler == 'cosine':
+                scheduler.step(epoch + num_batches / total_num_batches)
+
             train_loss += para_loss.item()
             writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
             loss_para_idx_value += 1
@@ -304,6 +320,9 @@ def train_multitask(args):
 
             sst_loss.backward()
             optimizer.step()
+
+            if args.scheduler == 'cosine':
+                scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += sst_loss.item()
             writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
@@ -337,6 +356,10 @@ def train_multitask(args):
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
 
+        if args.scheduler == 'plateau':
+            scheduler.step(dev_acc)
+
+        writer.add_scalar("lr", optimizer.param_groups[0]['lr'], epoch)
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
@@ -394,6 +417,7 @@ def get_args():
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5)
+    parser.add_argument("--scheduler", type=str, default="plateau", choices=('plateau', 'cosine', 'none'))
 
     args = parser.parse_args()
     return args
@@ -401,7 +425,8 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt'  # save path
+    # TODO Add optimizer after Sophia merge
+    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt'  # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
