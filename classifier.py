@@ -232,8 +232,6 @@ def save_model(model, optimizer, args, config, filepath):
 
 
 def train(args):
-    name = datetime.now().strftime("%Y%m%d-%H%M%S")
-    writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
     loss_idx_value = 0
 
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
@@ -265,6 +263,9 @@ def train(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
+
+    name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
+    writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
