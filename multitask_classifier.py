@@ -130,11 +130,17 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
-## Currently only trains on sst dataset
 def train_multitask(args):
     loss_sst_idx_value = 0
     loss_sts_idx_value = 0
     loss_para_idx_value = 0
+
+    train_all_datasets = True
+    n_datasets = args.sst + args.sts + args.para
+    if args.sst or args.sts or args.para:
+        train_all_datasets = False
+    if n_datasets == 0:
+        n_datasets = 3
 
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
@@ -195,80 +201,83 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
-            # Train on STS dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                batch['labels'])
+        if train_all_datasets or args.sts:
+            for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
+                # Train on STS dataset
+                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
+                    batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
 
-            b_labels = b_labels.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            sts_loss = F.mse_loss(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                b_labels = b_labels.to(torch.float32)
+                sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
-            sts_loss.backward()
-            optimizer.step()
+                sts_loss.backward()
+                optimizer.step()
 
-            train_loss += sts_loss.item()
-            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
-            loss_sts_idx_value += 1
-            num_batches += 1
+                train_loss += sts_loss.item()
+                writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
+                loss_sts_idx_value += 1
+                num_batches += 1
 
-        for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
-            # Train on PARAPHRASE dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                batch['labels'])
+        if train_all_datasets or args.para:
+            for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
+                # Train on PARAPHRASE dataset
+                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
+                    batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
 
-            b_labels = b_labels.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            para_loss = F.mse_loss(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                b_labels = b_labels.to(torch.float32)
+                para_loss = F.mse_loss(logits, b_labels.view(-1))
 
-            para_loss.backward()
-            optimizer.step()
+                para_loss.backward()
+                optimizer.step()
 
-            train_loss += para_loss.item()
-            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
-            loss_para_idx_value += 1
-            num_batches += 1
+                train_loss += para_loss.item()
+                writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
+                loss_para_idx_value += 1
+                num_batches += 1
 
-        for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
-            # Train on SST dataset
-            b_ids, b_mask, b_labels = (batch['token_ids'],
-                                       batch['attention_mask'], batch['labels'])
+        if train_all_datasets or args.sst:
+            for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
+                # Train on SST dataset
+                b_ids, b_mask, b_labels = (batch['token_ids'],
+                                           batch['attention_mask'], batch['labels'])
 
-            b_ids = b_ids.to(device)
-            b_mask = b_mask.to(device)
-            b_labels = b_labels.to(device)
+                b_ids = b_ids.to(device)
+                b_mask = b_mask.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_sentiment(b_ids, b_mask)
-            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_sentiment(b_ids, b_mask)
+                sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            sst_loss.backward()
-            optimizer.step()
+                sst_loss.backward()
+                optimizer.step()
 
-            train_loss += sst_loss.item()
-            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
-            loss_sst_idx_value += 1
-            num_batches += 1
+                train_loss += sst_loss.item()
+                writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
+                loss_sst_idx_value += 1
+                num_batches += 1
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -277,17 +286,20 @@ def train_multitask(args):
                                                                                               para_train_dataloader,
                                                                                               sts_train_dataloader,
                                                                                               model, device)
-        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
-        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
-        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
 
         para_dev_acc, _, _, sst_dev_acc, _, _, sts_dev_acc, _, _ = model_eval_multitask(sst_dev_dataloader,
                                                                                         para_dev_dataloader,
                                                                                         sts_dev_dataloader, model,
                                                                                         device)
-        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
+        if args.para:
+            writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+            writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+        if args.sst:
+            writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+            writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+        if args.sts:
+            writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+            writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if para_dev_acc > best_dev_acc_para and sst_dev_acc > best_dev_acc_sst and sts_dev_acc > best_dev_acc_sts:
             best_dev_acc_para = para_dev_acc
@@ -337,6 +349,10 @@ def get_args():
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
+
+    parser.add_argument("--sts", action='store_true')
+    parser.add_argument("--sst", action='store_true')
+    parser.add_argument("--para", action='store_true')
 
     parser.add_argument("--sst_dev_out", type=str, default="predictions/sst-dev-output.csv")
     parser.add_argument("--sst_test_out", type=str, default="predictions/sst-test-output.csv")
