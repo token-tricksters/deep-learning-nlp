@@ -48,14 +48,13 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = BertModel.from_pretrained('bert-large-uncased')
+        self.bert = BertModel.from_pretrained(config.model)
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
             elif config.option == 'finetune':
                 param.requires_grad = True
-
-        self.linear_layer = nn.Linear(config.hidden_size, config.num_labels)
+        self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
         self.paraphrase_linear = nn.Linear(config.hidden_size, 1)
         self.similarity_linear = nn.Linear(config.hidden_size, 1)
@@ -164,10 +163,12 @@ def train_multitask(args):
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sts_dev_data.collate_fn)
 
+    hidden_size = {'bert-base-uncased': 768, 'bert-large-uncased': 1024}
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
               'num_labels': num_labels,
-              'hidden_size': 1024,
+              'model': args.model,
+              'hidden_size': hidden_size[args.model],
               'data_dir': '.',
               'option': args.option}
 
@@ -323,6 +324,8 @@ def get_args():
     parser.add_argument("--option", type=str,
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
+    parser.add_argument("--model", type=str,
+                        choices=('bert-base-uncased', 'bert-large-uncased'), default="bert-base-uncased")
     parser.add_argument("--use_gpu", action='store_true')
 
     parser.add_argument("--sst_dev_out", type=str, default="predictions/sst-dev-output.csv")
