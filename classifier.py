@@ -41,7 +41,7 @@ class BertSentimentClassifier(torch.nn.Module):
     def __init__(self, config):
         super(BertSentimentClassifier, self).__init__()
         self.num_labels = config.num_labels
-        self.bert = BertModel.from_pretrained('bert-large-uncased')
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
 
         # Pretrain mode does not require updating bert paramters.
         for param in self.bert.parameters():
