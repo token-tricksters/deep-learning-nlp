@@ -167,6 +167,7 @@ def train_multitask(args):
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sts_dev_data.collate_fn)
 
+    print(f"Model: {args.model}")
     hidden_size = {'bert-base-uncased': 768, 'bert-large-uncased': 1024}
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
