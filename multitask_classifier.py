@@ -1,3 +1,4 @@
+from pprint import pformat
 import time, random, numpy as np, argparse, sys, re, os
 from datetime import datetime
 from types import SimpleNamespace
@@ -177,6 +178,9 @@ def train_multitask(args):
               'option': args.option}
 
     config = SimpleNamespace(**config)
+
+    print("Multitask BERT model:", file=sys.stderr)
+    print(pformat(vars(args)), file=sys.stderr)
 
     model = MultitaskBERT(config)
     model = model.to(device)
