@@ -129,6 +129,35 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
+def load_model(filepath, model, optimizer):
+    # Check if the file exists
+    if not os.path.isfile(filepath):
+        raise ValueError(f"File {filepath} does not exist")
+
+    save_info = torch.load(
+        filepath,
+        map_location=torch.device("cuda") if args.use_gpu else torch.device("cpu"),
+    )
+
+    # Load model state
+    model.load_state_dict(save_info["model"])
+
+    # Load optimizer state
+    optimizer.load_state_dict(save_info['optim'])
+
+    # Retrieve other saved information
+    # device is alredy set at this point
+    args = save_info['args']
+    config = save_info['model_config']
+    random.setstate(save_info['system_rng'])
+    np.random.set_state(save_info['numpy_rng'])
+    torch.random.set_rng_state(save_info['torch_rng'])
+
+    print(f"Loaded the model from {filepath}")
+
+    return model, optimizer, args, config
+
+
 ## Currently only trains on sst dataset
 def train_multitask(args):
     loss_sst_idx_value = 0
@@ -191,6 +220,10 @@ def train_multitask(args):
     best_dev_acc_para = 0
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
+
+    if args.checkpoint:
+        # New args is not used!
+        model, optimizer, _, config = load_model(args.checkpoint, model, optimizer)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
@@ -361,6 +394,7 @@ def get_args():
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5)
+    parser.add_argument("--checkpoint", type=str, default=None)
 
     args = parser.parse_args()
     return args
