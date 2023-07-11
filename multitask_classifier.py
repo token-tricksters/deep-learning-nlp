@@ -131,15 +131,23 @@ def save_model(model, optimizer, args, config, filepath):
 
 
 def load_model(filepath, model, optimizer):
-    save_info = torch.load(filepath)
+    # Check if the file exists
+    if not os.path.isfile(filepath):
+        raise ValueError(f"File {filepath} does not exist")
+
+    save_info = torch.load(
+        filepath,
+        map_location=torch.device("cuda") if args.use_gpu else torch.device("cpu"),
+    )
 
     # Load model state
-    model.load_state_dict(save_info['model'])
+    model.load_state_dict(save_info["model"])
 
     # Load optimizer state
     optimizer.load_state_dict(save_info['optim'])
 
     # Retrieve other saved information
+    # device is alredy set at this point
     args = save_info['args']
     config = save_info['model_config']
     random.setstate(save_info['system_rng'])
@@ -209,6 +217,7 @@ def train_multitask(args):
     best_dev_acc_sts = 0
 
     if args.checkpoint:
+        # New args is not used!
         model, optimizer, _, config = load_model(args.checkpoint, model, optimizer)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
