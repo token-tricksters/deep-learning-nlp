@@ -35,7 +35,7 @@ class BertSentimentClassifier(torch.nn.Module):
     def __init__(self, config):
         super(BertSentimentClassifier, self).__init__()
         self.num_labels = config.num_labels
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.bert = BertModel.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
         # Pretrain mode does not require updating bert paramters.
         for param in self.bert.parameters():
@@ -62,7 +62,7 @@ class SentimentDataset(Dataset):
     def __init__(self, dataset, args):
         self.dataset = dataset
         self.p = args
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
     def __len__(self):
         return len(self.dataset)
@@ -100,7 +100,7 @@ class SentimentTestDataset(Dataset):
     def __init__(self, dataset, args):
         self.dataset = dataset
         self.p = args
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
     def __len__(self):
         return len(self.dataset)
@@ -247,7 +247,8 @@ def train(args):
               'num_labels': num_labels,
               'hidden_size': 768,
               'data_dir': '.',
-              'option': args.option}
+              'option': args.option,
+              'local_files_only': args.local_files_only}
 
     config = SimpleNamespace(**config)
 
@@ -333,14 +334,15 @@ def get_args():
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
-    parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
-    parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
+    parser.add_argument("--dev_out", type=str, default="sst-dev-out.csv")
+    parser.add_argument("--test_out", type=str, default="sst-test-out.csv")
                                     
 
-    parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--batch_size", help='sst: 64 can fit a 12GB GPU', type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-                        default=1e-5)
+                        default=1e-3)
+    parser.add_argument("--local_files_only", action='store_true')
 
     args = parser.parse_args()
     return args
@@ -363,7 +365,8 @@ if __name__ == "__main__":
         test='data/ids-sst-test-student.csv',
         option=args.option,
         dev_out = 'predictions/'+args.option+'-sst-dev-out.csv',
-        test_out = 'predictions/'+args.option+'-sst-test-out.csv'
+        test_out = 'predictions/'+args.option+'-sst-test-out.csv',
+        local_files_only=args.local_files_only
     )
 
     train(config)
