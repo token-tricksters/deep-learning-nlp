@@ -59,6 +59,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
+        # No Dropout because it is the last layer before softmax, else worse performance
         result = self.bert(input_ids, attention_mask)
         return self.linear_layer(result['pooler_output'])
 
