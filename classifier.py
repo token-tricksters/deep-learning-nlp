@@ -51,6 +51,7 @@ class BertSentimentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # linear layer to get logits
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids, attention_mask):
@@ -59,6 +60,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
+
         # No Dropout because it is the last layer before softmax, else worse performance
         result = self.bert(input_ids, attention_mask)
         return self.linear_layer(result['pooler_output'])
@@ -266,6 +268,7 @@ def train(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
+    # Initialize the tensorboard writer
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
     writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
 
@@ -290,6 +293,7 @@ def train(args):
             optimizer.step()
 
             train_loss += loss.item()
+
             writer.add_scalar("Loss/Minibatches", loss.item(), loss_idx_value)
             loss_idx_value += 1
             num_batches += 1
@@ -362,7 +366,6 @@ def get_args():
     parser.add_argument("--logdir", type=str, default="logdir")
     parser.add_argument("--dev_out", type=str, default="sst-dev-out.csv")
     parser.add_argument("--test_out", type=str, default="sst-test-out.csv")
-                                    
 
     parser.add_argument("--batch_size", help='sst: 64 can fit a 12GB GPU', type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
@@ -372,7 +375,7 @@ def get_args():
 
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5 if args.option == 'finetune' else 1e-3)
-    
+
     args = parser.parse_args()
     return args
 
