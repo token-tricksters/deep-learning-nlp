@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
+from layers.AttentionLayer import AttentionLayer
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
@@ -52,6 +53,7 @@ class BertSentimentClassifier(torch.nn.Module):
 
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # linear layer to get logits
+        self.attention_layer = AttentionLayer(config.hidden_size)
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids, attention_mask):
@@ -63,7 +65,8 @@ class BertSentimentClassifier(torch.nn.Module):
 
         # No Dropout because it is the last layer before softmax, else worse performance
         result = self.bert(input_ids, attention_mask)
-        return self.linear_layer(result['pooler_output'])
+        attention_result = self.attention_layer(result['last_hidden_state'])
+        return self.linear_layer(attention_result)
 
 
 class SentimentDataset(Dataset):
