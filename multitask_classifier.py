@@ -172,14 +172,14 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
-def load_model(filepath, model, optimizer):
+def load_model(filepath, model, optimizer, use_gpu):
     # Check if the file exists
     if not os.path.isfile(filepath):
         raise ValueError(f"File {filepath} does not exist")
 
     save_info = torch.load(
         filepath,
-        map_location=torch.device("cuda") if args.use_gpu else torch.device("cpu"),
+        map_location=torch.device("cuda") if use_gpu else torch.device("cpu"),
     )
 
     # Load model state
@@ -191,6 +191,7 @@ def load_model(filepath, model, optimizer):
     # Retrieve other saved information
     # device is alredy set at this point
     args = save_info['args']
+    args.use_gpu = use_gpu
     config = save_info['model_config']
     random.setstate(save_info['system_rng'])
     np.random.set_state(save_info['numpy_rng'])
@@ -290,7 +291,7 @@ def train_multitask(args):
 
     if args.checkpoint:
         # New args is not used!
-        model, optimizer, _, config = load_model(args.checkpoint, model, optimizer)
+        model, optimizer, _, config = load_model(args.checkpoint, model, optimizer, args.use_gpu)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
@@ -324,7 +325,7 @@ def train_multitask(args):
                 optimizer.step()
 
                 if args.scheduler == 'cosine':
-                scheduler.step(epoch + num_batches / total_num_batches)
+                    scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += sts_loss.item()
             writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
@@ -354,7 +355,7 @@ def train_multitask(args):
                 optimizer.step()
 
                 if args.scheduler == 'cosine':
-                scheduler.step(epoch + num_batches / total_num_batches)
+                    scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += para_loss.item()
             writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
@@ -379,7 +380,7 @@ def train_multitask(args):
                 optimizer.step()
 
                 if args.scheduler == 'cosine':
-                scheduler.step(epoch + num_batches / total_num_batches)
+                    scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += sst_loss.item()
             writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
