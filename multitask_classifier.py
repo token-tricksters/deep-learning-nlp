@@ -1,3 +1,4 @@
+from pprint import pformat
 import time, random, numpy as np, argparse, sys, re, os
 from datetime import datetime
 from types import SimpleNamespace
@@ -32,7 +33,7 @@ def seed_everything(seed=11711):
     torch.backends.cudnn.deterministic = True
 
 
-BERT_HIDDEN_SIZE = 1024
+BERT_HIDDEN_SIZE = 768
 N_SENTIMENT_CLASSES = 5
 
 
@@ -49,7 +50,7 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = BertModel.from_pretrained('bert-large-uncased')
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -171,11 +172,47 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
+def load_model(filepath, model, optimizer):
+    # Check if the file exists
+    if not os.path.isfile(filepath):
+        raise ValueError(f"File {filepath} does not exist")
+
+    save_info = torch.load(
+        filepath,
+        map_location=torch.device("cuda") if args.use_gpu else torch.device("cpu"),
+    )
+
+    # Load model state
+    model.load_state_dict(save_info["model"])
+
+    # Load optimizer state
+    optimizer.load_state_dict(save_info['optim'])
+
+    # Retrieve other saved information
+    # device is alredy set at this point
+    args = save_info['args']
+    config = save_info['model_config']
+    random.setstate(save_info['system_rng'])
+    np.random.set_state(save_info['numpy_rng'])
+    torch.random.set_rng_state(save_info['torch_rng'])
+
+    print(f"Loaded the model from {filepath}")
+
+    return model, optimizer, args, config
+
+
 ## Currently only trains on sst dataset
 def train_multitask(args):
     loss_sst_idx_value = 0
     loss_sts_idx_value = 0
     loss_para_idx_value = 0
+
+    train_all_datasets = True
+    n_datasets = args.sst + args.sts + args.para
+    if args.sst or args.sts or args.para:
+        train_all_datasets = False
+    if n_datasets == 0:
+        n_datasets = 3
 
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
@@ -186,40 +223,53 @@ def train_multitask(args):
     sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev, args.para_dev,
                                                                                 args.sts_dev, split='train')
 
-    sst_train_data = SentenceClassificationDataset(sst_train_data, args)
-    sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
+    sst_train_dataloader = None
+    sst_dev_dataloader = None
+    para_train_dataloader = None
+    para_dev_dataloader = None
+    sts_train_dataloader = None
+    sts_dev_dataloader = None
 
-    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
-                                      collate_fn=sst_train_data.collate_fn)
-    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=sst_dev_data.collate_fn)
+    if train_all_datasets or args.sst:
+        sst_train_data = SentenceClassificationDataset(sst_train_data, args)
+        sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-    para_train_data = SentencePairDataset(para_train_data, args)
-    para_dev_data = SentencePairDataset(para_dev_data, args)
+        sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
+                                          collate_fn=sst_train_data.collate_fn)
+        sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
+                                        collate_fn=sst_dev_data.collate_fn)
 
-    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
-                                       collate_fn=para_train_data.collate_fn)
-    para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
-                                     collate_fn=para_dev_data.collate_fn)
+    if train_all_datasets or args.para:
+        para_train_data = SentencePairDataset(para_train_data, args)
+        para_dev_data = SentencePairDataset(para_dev_data, args)
 
-    sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
-    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
+        para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
+                                           collate_fn=para_train_data.collate_fn)
+        para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
+                                         collate_fn=para_dev_data.collate_fn)
 
-    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
-                                      collate_fn=sts_train_data.collate_fn)
-    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=sts_dev_data.collate_fn)
+    if train_all_datasets or args.sts:
+        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
+        sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
+        sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
+                                          collate_fn=sts_train_data.collate_fn)
+        sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
+                                        collate_fn=sts_dev_data.collate_fn)
     total_num_batches = len(sst_train_dataloader) + len(para_train_dataloader) + len(sts_train_dataloader)
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
               'num_labels': num_labels,
-              'hidden_size': 1024,
+              'hidden_size': 768,
               'data_dir': '.',
-              'option': args.option}
+              'option': args.option,
+              'local_files_only': args.local_files_only}
 
     config = SimpleNamespace(**config)
+
+    print("Multitask BERT model:", file=sys.stderr)
+    print(pformat(vars(args)), file=sys.stderr)
 
     model = MultitaskBERT(config)
     model = model.to(device)
@@ -238,6 +288,10 @@ def train_multitask(args):
     best_dev_acc_sst = 0
     best_dev_acc_sts = 0
 
+    if args.checkpoint:
+        # New args is not used!
+        model, optimizer, _, config = load_model(args.checkpoint, model, optimizer)
+
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
 
@@ -246,29 +300,30 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
-            # Train on STS dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                batch['labels'])
+        if train_all_datasets or args.sts:
+            for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
+                # Train on STS dataset
+                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
+                    batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
 
-            b_labels = b_labels.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            sts_loss = F.mse_loss(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                b_labels = b_labels.to(torch.float32)
+                sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
-            sts_loss.backward()
-            optimizer.step()
+                sts_loss.backward()
+                optimizer.step()
 
-            if args.scheduler == 'cosine':
+                if args.scheduler == 'cosine':
                 scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += sts_loss.item()
@@ -276,28 +331,29 @@ def train_multitask(args):
             loss_sts_idx_value += 1
             num_batches += 1
 
-        for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
-            # Train on PARAPHRASE dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                batch['labels'])
+        if train_all_datasets or args.para:
+            for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
+                # Train on PARAPHRASE dataset
+                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
+                    batch['labels'])
 
-            b_ids_1 = b_ids_1.to(device)
-            b_mask_1 = b_mask_1.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
 
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_2 = b_mask_2.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
 
-            b_labels = b_labels.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            para_loss = F.cross_entropy(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+                para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            para_loss.backward()
-            optimizer.step()
+                para_loss.backward()
+                optimizer.step()
 
-            if args.scheduler == 'cosine':
+                if args.scheduler == 'cosine':
                 scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += para_loss.item()
@@ -305,23 +361,24 @@ def train_multitask(args):
             loss_para_idx_value += 1
             num_batches += 1
 
-        for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
-            # Train on SST dataset
-            b_ids, b_mask, b_labels = (batch['token_ids'],
-                                       batch['attention_mask'], batch['labels'])
+        if train_all_datasets or args.sst:
+            for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
+                # Train on SST dataset
+                b_ids, b_mask, b_labels = (batch['token_ids'],
+                                           batch['attention_mask'], batch['labels'])
 
-            b_ids = b_ids.to(device)
-            b_mask = b_mask.to(device)
-            b_labels = b_labels.to(device)
+                b_ids = b_ids.to(device)
+                b_mask = b_mask.to(device)
+                b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model.predict_sentiment(b_ids, b_mask)
-            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+                optimizer.zero_grad()
+                logits = model.predict_sentiment(b_ids, b_mask)
+                sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            sst_loss.backward()
-            optimizer.step()
+                sst_loss.backward()
+                optimizer.step()
 
-            if args.scheduler == 'cosine':
+                if args.scheduler == 'cosine':
                 scheduler.step(epoch + num_batches / total_num_batches)
 
             train_loss += sst_loss.item()
@@ -336,17 +393,20 @@ def train_multitask(args):
                                                                                               para_train_dataloader,
                                                                                               sts_train_dataloader,
                                                                                               model, device)
-        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
-        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
-        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
 
         para_dev_acc, _, _, sst_dev_acc, _, _, sts_dev_acc, _, _ = model_eval_multitask(sst_dev_dataloader,
                                                                                         para_dev_dataloader,
                                                                                         sts_dev_dataloader, model,
                                                                                         device)
-        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
+        if args.para:
+            writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+            writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+        if args.sst:
+            writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+            writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+        if args.sts:
+            writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+            writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if para_dev_acc > best_dev_acc_para and sst_dev_acc > best_dev_acc_sst and sts_dev_acc > best_dev_acc_sts:
             best_dev_acc_para = para_dev_acc
@@ -401,6 +461,10 @@ def get_args():
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
 
+    parser.add_argument("--sts", action='store_true')
+    parser.add_argument("--sst", action='store_true')
+    parser.add_argument("--para", action='store_true')
+
     parser.add_argument("--sst_dev_out", type=str, default="predictions/sst-dev-output.csv")
     parser.add_argument("--sst_test_out", type=str, default="predictions/sst-test-output.csv")
 
@@ -413,10 +477,12 @@ def get_args():
     parser.add_argument("--logdir", type=str, default="logdir")
 
     # hyper parameters
-    parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--batch_size", help='sst: 64 can fit a 12GB GPU', type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5)
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--local_files_only", action='store_true')
     parser.add_argument("--scheduler", type=str, default="plateau", choices=('plateau', 'cosine', 'none'))
 
     args = parser.parse_args()
