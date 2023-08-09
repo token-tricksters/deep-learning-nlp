@@ -193,7 +193,7 @@ def train_multitask(args):
     para_dev_dataloader = None
     sts_train_dataloader = None
     sts_dev_dataloader = None
-
+    total_num_batches = 0
     if train_all_datasets or args.sst:
         sst_train_data = SentenceClassificationDataset(sst_train_data, args)
         sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
@@ -202,6 +202,7 @@ def train_multitask(args):
                                           collate_fn=sst_train_data.collate_fn)
         sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sst_dev_data.collate_fn)
+        total_num_batches += len(sst_train_dataloader)
 
     if train_all_datasets or args.para:
         para_train_data = SentencePairDataset(para_train_data, args)
@@ -211,6 +212,7 @@ def train_multitask(args):
                                            collate_fn=para_train_data.collate_fn)
         para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
                                          collate_fn=para_dev_data.collate_fn)
+        total_num_batches += len(para_train_dataloader)
 
     if train_all_datasets or args.sts:
         sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
@@ -220,8 +222,7 @@ def train_multitask(args):
                                           collate_fn=sts_train_data.collate_fn)
         sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sts_dev_data.collate_fn)
-
-    total_num_batches = len(sst_train_dataloader) + len(para_train_dataloader) + len(sts_train_dataloader)
+        total_num_batches += len(sts_train_dataloader)
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
