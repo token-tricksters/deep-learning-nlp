@@ -46,9 +46,14 @@ class BertSelfAttention(nn.Module):
         # multiply the attention scores to the value and get back V'
         # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
 
+        # key, query, value: [bs, num_attention_heads, seq_len, attention_head_size]
+        # attention_mask: [bs, 1, 1, seq_len]
+        # output: [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
+        # Note: the attention_mask is used to mask out the padding tokens
         bs, h, seq_len, d_k = key.shape
         S = query @ torch.transpose(key, 2, 3) + attention_mask
 
+        # normalize the scores
         result = torch.softmax((S / math.sqrt(d_k)), 3) @ value
         return result.transpose(1, 2).reshape(bs, seq_len, h * d_k)
 
@@ -94,7 +99,7 @@ class BertLayer(nn.Module):
         dropout: the dropout to be applied
         ln_layer: the layer norm to be applied
         """
-        # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized
+        # apply layer norm to the output and skip connection
         return ln_layer(input + dense_layer(dropout(output)))
 
     def forward(self, hidden_states, attention_mask):
@@ -107,7 +112,7 @@ class BertLayer(nn.Module):
         3. a feed forward layer
         4. a add-norm that takes the input and output of the feed forward layer
         """
-        ### TODO
+        # apply multi-head attention
         multi_head = self.self_attention(hidden_states, attention_mask)
 
         add_norm_1 = self.add_norm(hidden_states, multi_head, self.attention_dense, self.attention_dropout,

@@ -11,6 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
+from layers.AttentionLayer import AttentionLayer
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
@@ -42,7 +43,7 @@ class BertSentimentClassifier(torch.nn.Module):
     def __init__(self, config):
         super(BertSentimentClassifier, self).__init__()
         self.num_labels = config.num_labels
-        self.bert = BertModel.from_pretrained("bert-base-uncased")
+        self.bert = BertModel.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
         # Pretrain mode does not require updating bert paramters.
         for param in self.bert.parameters():
@@ -52,6 +53,8 @@ class BertSentimentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # linear layer to get logits
+        self.attention_layer = AttentionLayer(config.hidden_size)
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids, attention_mask):
@@ -60,15 +63,18 @@ class BertSentimentClassifier(torch.nn.Module):
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
         # Cross entropy already has a softmax therefore this should be okay
+
+        # No Dropout because it is the last layer before softmax, else worse performance
         result = self.bert(input_ids, attention_mask)
-        return self.linear_layer(result['pooler_output'])
+        attention_result = self.attention_layer(result['last_hidden_state'])
+        return self.linear_layer(attention_result)
 
 
 class SentimentDataset(Dataset):
     def __init__(self, dataset, args):
         self.dataset = dataset
         self.p = args
-        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
     def __len__(self):
         return len(self.dataset)
@@ -106,7 +112,7 @@ class SentimentTestDataset(Dataset):
     def __init__(self, dataset, args):
         self.dataset = dataset
         self.p = args
-        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
     def __len__(self):
         return len(self.dataset)
@@ -261,13 +267,12 @@ def train(args):
     )
 
     # Init model
-    config = {
-        "hidden_dropout_prob": args.hidden_dropout_prob,
-        "num_labels": num_labels,
-        "hidden_size": 768,
-        "data_dir": ".",
-        "option": args.option,
-    }
+    config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+              'num_labels': num_labels,
+              'hidden_size': 768,
+              'data_dir': '.',
+              'option': args.option,
+              'local_files_only': args.local_files_only}
 
     config = SimpleNamespace(**config)
     ctx = nullcontext() if not args.use_gpu else torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
@@ -286,6 +291,7 @@ def train(args):
 
     best_dev_acc = 0
 
+    # Initialize the tensorboard writer
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-lr={lr}-optimizer={type(optimizer).__name__}"
     writer = SummaryWriter(log_dir=args.logdir + "/classifier/" + name)
 
@@ -333,6 +339,7 @@ def train(args):
                 optimizer.zero_grad(set_to_none=True)
 
             train_loss += loss.item()
+
             writer.add_scalar("Loss/Minibatches", loss.item(), loss_idx_value)
             loss_idx_value += 1
             num_batches += 1
@@ -408,29 +415,26 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=11711)
     parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument(
-        "--option",
-        type=str,
-        help="pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated",
-        choices=("pretrain", "finetune"),
-        default="pretrain",
-    )
-    parser.add_argument("--use_gpu", action="store_true")
-    parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
-    parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
+    parser.add_argument("--option", type=str,
+                        help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
+                        choices=('pretrain', 'finetune'), default="pretrain")
+    parser.add_argument("--use_gpu", action='store_true')
 
     parser.add_argument("--logdir", type=str, default="logdir")
+    parser.add_argument("--dev_out", type=str, default="sst-dev-out.csv")
+    parser.add_argument("--test_out", type=str, default="sst-test-out.csv")
 
-    parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--batch_size", help='sst: 64 can fit a 12GB GPU', type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--optimizer", type=str, default="adamw")
+    parser.add_argument("--local_files_only", action='store_true')
 
     args, _ = parser.parse_known_args()
 
     # TODO: Possibly change defaults based on optimizer
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5 if args.option == 'finetune' else 1e-3)
-    
+
     args = parser.parse_args()
     return args
 
@@ -455,7 +459,8 @@ if __name__ == "__main__":
         dev_out='predictions/' + args.option + '-sst-dev-out.csv',
         test_out='predictions/' + args.option + '-sst-test-out.csv',
         logdir=args.logdir,
-        optimizer=args.optimizer
+        optimizer=args.optimizer,
+        local_files_only=args.local_files_only
     )
 
     train(config)
