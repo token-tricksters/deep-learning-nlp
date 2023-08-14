@@ -10,13 +10,13 @@ from torch.optim import Optimizer
 
 class AdamW(Optimizer):
     def __init__(
-            self,
-            params: Iterable[torch.nn.parameter.Parameter],
-            lr: float = 1e-3,
-            betas: Tuple[float, float] = (0.9, 0.999),
-            eps: float = 1e-8,
-            weight_decay: float = 1e-2,
-            correct_bias: bool = True,
+        self,
+        params: Iterable[torch.nn.parameter.Parameter],
+        lr: float = 1e-3,
+        betas: Tuple[float, float] = (0.9, 0.999),
+        eps: float = 1e-8,
+        weight_decay: float = 1e-2,
+        correct_bias: bool = True,
     ):
         if lr < 0.0:
             raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
@@ -31,8 +31,12 @@ class AdamW(Optimizer):
         if not 0.0 <= eps:
             raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
         if not 0.0 <= weight_decay:
-            raise ValueError("Invalid weight_decay value: {} - should be >= 0.0".format(weight_decay))
-        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, correct_bias=correct_bias)
+            raise ValueError(
+                "Invalid weight_decay value: {} - should be >= 0.0".format(weight_decay)
+            )
+        defaults = dict(
+            lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, correct_bias=correct_bias
+        )
         super().__init__(params, defaults)
 
     def step(self, closure: Callable = None):
@@ -101,7 +105,6 @@ class AdamW(Optimizer):
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
                 p.data.sub_(group["lr"] * p.data * weight_decay)
-
 
         return loss
 
@@ -174,7 +177,6 @@ class SophiaG(Optimizer):
 
         for group in self.param_groups:
             for p in group["params"]:
-
                 grad = p.grad
 
                 if grad is None:
@@ -213,6 +215,126 @@ class SophiaG(Optimizer):
                 # 3 - Decay the hessian running average coefficient
                 # Clipping the hessian.
                 ratio = (exp_avg / (rho * hess + eps)).clamp(-1, 1)
-                p.data.add_(-lr * ratio)
+                p.data.add_(ratio, alpha=-lr)
+
+        return loss
+
+
+class SophiaH(Optimizer):
+    """
+    Sophia: Second-order Clipped Stochastic Optimization.
+    Using Sophia with the Hutchinson estimate of the Hessian.state["hessian"]
+
+    https://arxiv.org/pdf/2305.14342.pdf
+    """
+
+    def __init__(
+        self,
+        params: Iterable[torch.nn.parameter.Parameter],
+        lr: float = 1e-4,
+        betas: Tuple[float, float] = (0.965, 0.99),
+        rho: float = 0.04,
+        weight_decay: float = 0.1,
+        eps: float = 1e-15,
+    ):
+        if lr < 0.0:
+            raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
+        if not 0.0 <= betas[0] < 1.0:
+            raise ValueError(
+                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[0])
+            )
+        if not 0.0 <= betas[1] < 1.0:
+            raise ValueError(
+                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[1])
+            )
+        if not 0.0 <= rho:
+            raise ValueError("Invalid rho value: {} - should be >= 0.0".format(rho))
+        if not 0.0 <= weight_decay:
+            raise ValueError(
+                "Invalid weight_decay value: {} - should be >= 0.0".format(weight_decay)
+            )
+        if not 0.0 <= eps:
+            raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
+        defaults = dict(
+            lr=lr,
+            betas=betas,
+            rho=rho,
+            weight_decay=weight_decay,
+            eps=eps,
+        )
+        super(SophiaG, self).__init__(params, defaults)
+
+    @torch.no_grad()
+    def update_hessian(self):
+        for group in self.param_groups:
+            _, beta2 = group["betas"]
+
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                state = self.state[p]
+
+                # draw u from N(0, I)
+                u = torch.randn_like(p.grad)
+
+                # Compute < grad, u >
+                gu = torch.sum(p.grad * u)
+                
+                # Differentiate < grad, u > wrt to the parameters
+                hvp = torch.autograd.grad(gu, p, retain_graph=True)
+
+                # u ⊙ hvp
+                state["hessian"].mul_(beta2).addcmul_(u, hvp, value=1 - beta2)
+
+
+    @torch.no_grad()
+    def step(self, closure: Callable = None):
+        loss = None
+
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+        for group in self.param_groups:
+            for p in group["params"]:
+                grad = p.grad
+
+                if grad is None:
+                    continue
+
+                if grad.is_sparse:
+                    raise RuntimeError("Sophia does not support sparse gradients")
+
+                # State should be stored in this dictionary
+                state = self.state[p]
+
+                # Init state variables
+                if len(state) == 0:
+                    state["step"] = torch.zeros((1,), dtype=torch.float, device=p.device)
+                    state["exp_avg"] = torch.zeros_like(p)
+                    state["hessian"] = torch.zeros_like(p)
+
+                # Access hyperparameters from the `group` dictionary
+                beta1, _ = group["betas"]
+                rho = group["rho"]
+                lr = group["lr"]
+                eps = group["eps"]
+                weight_decay = group["weight_decay"]
+                exp_avg = state["exp_avg"]
+                hess = state["hessian"]
+
+                # Calculation of new weights
+                state["step"] += 1
+
+                # 1 - Perform stepweight decay
+                p.data.mul_(1 - lr * weight_decay)
+
+                # 2 - Decay the first and second moment running average coefficient
+                exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+
+                # 3 - Decay the hessian running average coefficient
+                # Clipping the hessian.
+                ratio = (exp_avg / (rho * hess + eps)).clamp(-1, 1)
+                p.data.add_(ratio, alpha=-lr)
 
         return loss
