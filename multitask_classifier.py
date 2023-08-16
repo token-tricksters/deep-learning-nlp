@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
-from layers.AttentionLayer import AttentionLayer
+from AttentionLayer import AttentionLayer
 from optimizer import AdamW
 from tqdm import tqdm
 
