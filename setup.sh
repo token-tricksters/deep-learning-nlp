@@ -12,3 +12,4 @@ pip install sklearn==0.0
 pip install tokenizers==0.13.2
 pip install explainaboard_client==0.0.7
 pip install tensorboard
+pip install nltk

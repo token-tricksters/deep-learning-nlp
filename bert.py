@@ -1,9 +1,12 @@
 from typing import Dict, List, Optional, Union, Tuple, Callable
 import math
+
+import nltk
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from base_bert import BertPreTrainedModel
+from tokenizer import BertTokenizer
 from utils import *
 
 
@@ -138,10 +141,22 @@ class BertModel(BertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
+
+        nltk.download('punkt')
+        nltk.download('averaged_perceptron_tagger')
+        nltk.download('tagsets')
+
+        pos_tags_nltk = set([tag for tag, _ in nltk.data.load('help/tagsets/upenn_tagset.pickle').items()])
+
+        # Create a vocabulary dictionary for POS tags
+        self.pos_tag_vocab = {tag: index for index, tag in enumerate(pos_tags_nltk)}
+
         # embedding
         self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.tk_type_embedding = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.pos_tag_embedding = nn.Embedding(config.pos_tag_count, config.hidden_size)
         self.embed_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.embed_dropout = nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is a constant, register to buffer
@@ -173,8 +188,30 @@ class BertModel(BertPreTrainedModel):
         tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
         tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
+        # Initialize an empty list to store POS tags for each token in each sequence
+        all_pos_tags = []
+
+        # Loop through each sequence in the batch
+        for sequence_ids in input_ids:
+            # Convert input_ids to tokens using the BERT tokenizer
+            tokens = self.tokenizer.convert_ids_to_tokens(sequence_ids.tolist())
+
+            # Convert tokens to strings
+            token_strings = [token if token != '[PAD]' else '' for token in tokens]
+
+            # Perform POS tagging using NLTK
+            pos_tags = nltk.pos_tag(token_strings)
+
+            # Map POS tags to integer indices using the vocabulary
+            sequence_pos_indices = [self.pos_tag_vocab.get(tag, -1) for _, tag in pos_tags]
+            # Append the POS tag indices of the current sequence to the list
+            all_pos_tags.append(sequence_pos_indices)
+        pos_tags_tensor = torch.tensor(all_pos_tags, dtype=torch.int64)
+
+        pos_tag_embeds = self.pos_tag_embedding(pos_tags_tensor)
+
         # Add three embeddings together; then apply embed_layer_norm and dropout and return.
-        return self.embed_dropout(self.embed_layer_norm(inputs_embeds + pos_embeds + tk_type_embeds))
+        return self.embed_dropout(self.embed_layer_norm(inputs_embeds + pos_embeds + tk_type_embeds + pos_tag_embeds))
 
     def encode(self, hidden_states, attention_mask):
         """
