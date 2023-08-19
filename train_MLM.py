@@ -36,7 +36,7 @@ class BertForMaskedLM(nn.Module):
 # Initialize Tokenizer and Model
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
 model = BertForMaskedLM(tokenizer.vocab_size)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
 # Hyperparameters
 MASK_PROB = 0.15
@@ -76,7 +76,7 @@ for iter, X in enumerate(dataloader):
     # 5. Optimization step
     optimizer.step()
 
-    print(f"MLM Loss: {mlm_loss.item()}")
+    print(f"iter: {iter} - MLM Loss: {mlm_loss.item()}")
 
     # mini-eval
 
