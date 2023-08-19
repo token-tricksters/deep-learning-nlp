@@ -267,7 +267,7 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
-        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader)):
+        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader), total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
             
             optimizer.zero_grad()
 
