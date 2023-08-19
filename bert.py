@@ -1,11 +1,8 @@
-from typing import Dict, List, Optional, Union, Tuple, Callable
 import math
 
-import nltk
 import spacy
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
+
 from base_bert import BertPreTrainedModel
 from tokenizer import BertTokenizer
 from utils import *
