@@ -22,18 +22,28 @@ class QuoraTextDataset(Dataset):
 quora_text_dataset = QuoraTextDataset()
 dataloader = DataLoader(quora_text_dataset, batch_size=64, shuffle=True, num_workers=0)
 
+class BertForMaskedLM(nn.Module):
+    def __init__(self, vocab_size):
+        super(BertForMaskedLM, self).__init__()
+        self.base_model = BertModel.from_pretrained('bert-base-uncased')
+        self.predictor = nn.Linear(768, vocab_size)
+        
+    def forward(self, input_ids, attention_mask):
+        outputs = self.base_model(input_ids, attention_mask)
+        predictions = self.predictor(outputs["last_hidden_state"])
+        return predictions
+
 # Initialize Tokenizer and Model
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
-model = BertModel.from_pretrained('bert-base-uncased')
-optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+model = BertForMaskedLM(tokenizer.vocab_size)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
 # Hyperparameters
-BATCH_SIZE = 1
 MASK_PROB = 0.15
 VOCAB_SIZE = tokenizer.vocab_size
 
 # MLM Loss
-criterion = nn.MSELoss()
+criterion = nn.CrossEntropyLoss()
 
 for iter, X in enumerate(dataloader):
 
@@ -49,14 +59,13 @@ for iter, X in enumerate(dataloader):
     original_ids = input_ids.clone()
     input_ids[masked_indices] = tokenizer.convert_tokens_to_ids('[MASK]')
 
-    embedding_unmasked = model.embed(input_ids)
-
     # 3. Get BERT's output
-    outputs = model(input_ids, attention_mask)
-    predictions = outputs["last_hidden_state"]
+    predictions = model(input_ids, attention_mask)
 
-    # Enforce consistency on the unmasked input embeddings vs output embeddings
-    mlm_loss = criterion(predictions, embedding_unmasked)
+    masked_predictions = predictions[masked_indices]
+    masked_token_ids = original_ids[masked_indices]
+
+    mlm_loss = criterion(masked_predictions, masked_token_ids)
     
     # Zero out previous gradients
     optimizer.zero_grad()
@@ -69,3 +78,25 @@ for iter, X in enumerate(dataloader):
 
     print(f"MLM Loss: {mlm_loss.item()}")
 
+    # mini-eval
+
+    
+    inp = X[:1]
+
+    encoding = tokenizer(inp, return_tensors='pt', padding=True, truncation=True)
+    input_ids = encoding["input_ids"]
+    attention_mask = encoding["attention_mask"]
+
+    probability_matrix = torch.full(input_ids.shape, MASK_PROB)
+    masked_indices = torch.bernoulli(probability_matrix).bool()
+    original_ids = input_ids.clone()
+    input_ids[masked_indices] = tokenizer.convert_tokens_to_ids('[MASK]')
+
+    model.eval()
+    with torch.no_grad():
+        out = model(input_ids, attention_mask)
+
+    print(tokenizer.convert_ids_to_tokens(input_ids[0]))
+    
+    out = torch.argmax(out, axis=2)
+    print(tokenizer.convert_ids_to_tokens(out[0]))
