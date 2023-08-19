@@ -24,8 +24,8 @@ def preprocess_string(s):
 
 
 class SentenceClassificationDataset(Dataset):
-    def __init__(self, dataset, args, real_length=False):
-        self.real_length = real_length
+    def __init__(self, dataset, args, override_length=None):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
@@ -34,12 +34,12 @@ class SentenceClassificationDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.real_length:
+        if self.override_length is not None:
             return self.real_len()
-        return 150000
+        return self.override_length
 
     def __getitem__(self, idx):
-        if idx >= len(self.dataset):
+        if self.override_length is not None:
             return self[randrange(len(self.dataset))]
 
         return self.dataset[idx]
@@ -71,8 +71,8 @@ class SentenceClassificationDataset(Dataset):
 
 
 class SentenceClassificationTestDataset(Dataset):
-    def __init__(self, dataset, args, real_length=False):
-        self.real_length = real_length
+    def __init__(self, dataset, args, override_length=None):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
@@ -81,12 +81,12 @@ class SentenceClassificationTestDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.real_length:
+        if self.override_length is not None:
             return self.real_len()
-        return 150000
+        return self.override_length
 
     def __getitem__(self, idx):
-        if idx >= len(self.dataset):
+        if self.override_length is not None:
             return self[randrange(len(self.dataset))]
 
         return self.dataset[idx]
@@ -115,8 +115,8 @@ class SentenceClassificationTestDataset(Dataset):
 
 
 class SentencePairDataset(Dataset):
-    def __init__(self, dataset, args, isRegression=False, real_length=False):
-        self.real_length = real_length
+    def __init__(self, dataset, args, isRegression=False, override_length=None):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.isRegression = isRegression
@@ -126,12 +126,12 @@ class SentencePairDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.real_length:
+        if self.override_length is not None:
             return self.real_len()
-        return 150000
+        return self.override_length
 
     def __getitem__(self, idx):
-        if idx >= len(self.dataset):
+        if self.override_length is not None:
             return self[randrange(len(self.dataset))]
 
         return self.dataset[idx]
