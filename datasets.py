@@ -35,7 +35,7 @@ class SentenceClassificationDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.override_length is not None:
+        if self.override_length is None:
             return self.real_len()
         return self.override_length
 
@@ -82,7 +82,7 @@ class SentenceClassificationTestDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.override_length is not None:
+        if self.override_length is None:
             return self.real_len()
         return self.override_length
 
@@ -127,7 +127,7 @@ class SentencePairDataset(Dataset):
         return len(self.dataset)
 
     def __len__(self):
-        if self.override_length is not None:
+        if self.override_length is None:
             return self.real_len()
         return self.override_length
 
