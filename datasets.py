@@ -12,7 +12,7 @@ import csv
 import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
-
+from random import randrange
 
 def preprocess_string(s):
     return ' '.join(s.lower()
@@ -29,10 +29,16 @@ class SentenceClassificationDataset(Dataset):
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        return 150000
+
     def __getitem__(self, idx):
+        if idx >= len(self.dataset):
+            return self[randrange(len(self.dataset))]
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -67,10 +73,16 @@ class SentenceClassificationTestDataset(Dataset):
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        return 150000
+
     def __getitem__(self, idx):
+        if idx >= len(self.dataset):
+            return self[randrange(len(self.dataset))]
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -103,10 +115,16 @@ class SentencePairDataset(Dataset):
         self.isRegression = isRegression
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        return 150000
+
     def __getitem__(self, idx):
+        if idx >= len(self.dataset):
+            return self[randrange(len(self.dataset))]
+
         return self.dataset[idx]
 
     def pad_data(self, data):
