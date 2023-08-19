@@ -196,7 +196,7 @@ def train_multitask(args):
     total_num_batches = 0
     if train_all_datasets or args.sst:
         sst_train_data = SentenceClassificationDataset(sst_train_data, args)
-        sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
+        sst_dev_data = SentenceClassificationDataset(sst_dev_data, args, real_length=True)
 
         sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
                                           collate_fn=sst_train_data.collate_fn)
@@ -206,7 +206,7 @@ def train_multitask(args):
 
     if train_all_datasets or args.para:
         para_train_data = SentencePairDataset(para_train_data, args)
-        para_dev_data = SentencePairDataset(para_dev_data, args)
+        para_dev_data = SentencePairDataset(para_dev_data, args, real_length=True)
 
         para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
                                            collate_fn=para_train_data.collate_fn)
@@ -216,7 +216,7 @@ def train_multitask(args):
 
     if train_all_datasets or args.sts:
         sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
-        sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
+        sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True, real_length=True)
 
         sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
                                           collate_fn=sts_train_data.collate_fn)
