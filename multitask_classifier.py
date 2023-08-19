@@ -266,92 +266,64 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        if train_all_datasets or args.sts:
-            for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
-                # Train on STS dataset
-                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                    batch['labels'])
 
-                b_ids_1 = b_ids_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
+        for sts, para, sst in zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader):
+            
+            optimizer.zero_grad()
 
-                b_ids_2 = b_ids_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
+            # Train on STS dataset
+            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                sts['token_ids_1'], sts['attention_mask_1'], sts['token_ids_2'], sts['attention_mask_2'],
+                sts['labels'])
 
-                b_labels = b_labels.to(device)
+            b_ids_1 = b_ids_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
 
-                optimizer.zero_grad()
-                logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                b_labels = b_labels.to(torch.float32)
-                sts_loss = F.mse_loss(logits, b_labels.view(-1))
+            b_ids_2 = b_ids_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
 
-                sts_loss.backward()
-                optimizer.step()
+            b_labels = b_labels.to(device)
 
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            b_labels = b_labels.to(torch.float32)
+            sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
-            train_loss += sts_loss.item()
-            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
-            loss_sts_idx_value += 1
-            num_batches += 1
+            # Train on PARAPHRASE dataset
+            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                para['token_ids_1'], para['attention_mask_1'], para['token_ids_2'], para['attention_mask_2'],
+                para['labels'])
 
-        if train_all_datasets or args.para:
-            for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
-                # Train on PARAPHRASE dataset
-                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                    batch['labels'])
+            b_ids_1 = b_ids_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
 
-                b_ids_1 = b_ids_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
+            b_ids_2 = b_ids_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
 
-                b_ids_2 = b_ids_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
+            b_labels = b_labels.to(device)
 
-                b_labels = b_labels.to(device)
+            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            b_labels = b_labels.to(torch.float32)
+            para_loss = F.mse_loss(logits, b_labels.view(-1))
 
-                optimizer.zero_grad()
-                logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                b_labels = b_labels.to(torch.float32)
-                para_loss = F.mse_loss(logits, b_labels.view(-1))
+            # Train on SST dataset
+            b_ids, b_mask, b_labels = (sst['token_ids'],
+                                        sst['attention_mask'], sst['labels'])
 
-                para_loss.backward()
-                optimizer.step()
+            b_ids = b_ids.to(device)
+            b_mask = b_mask.to(device)
+            b_labels = b_labels.to(device)
 
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
+            logits = model.predict_sentiment(b_ids, b_mask)
+            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-            train_loss += para_loss.item()
-            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
-            loss_para_idx_value += 1
-            num_batches += 1
+            full_loss = sts_loss + para_loss + sst_loss
+            full_loss.backward()
 
-        if train_all_datasets or args.sst:
-            for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
-                # Train on SST dataset
-                b_ids, b_mask, b_labels = (batch['token_ids'],
-                                           batch['attention_mask'], batch['labels'])
+            optimizer.step()
 
-                b_ids = b_ids.to(device)
-                b_mask = b_mask.to(device)
-                b_labels = b_labels.to(device)
 
-                optimizer.zero_grad()
-                logits = model.predict_sentiment(b_ids, b_mask)
-                sst_loss = F.cross_entropy(logits, b_labels.view(-1))
-
-                sst_loss.backward()
-                optimizer.step()
-
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
-
-            train_loss += sst_loss.item()
-            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
-            loss_sst_idx_value += 1
-            num_batches += 1
+            print(full_loss)
+            print("DONE")
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
