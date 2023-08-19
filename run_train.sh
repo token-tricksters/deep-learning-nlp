@@ -30,4 +30,4 @@ nvcc -V
 git branch
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 64 --option finetune --samples_per_epoch 200
+python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 64 --option finetune --samples_per_epoch 10000
