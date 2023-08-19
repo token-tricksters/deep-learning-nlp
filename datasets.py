@@ -13,6 +13,7 @@ import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
 from random import randrange
+import random
 
 def preprocess_string(s):
     return ' '.join(s.lower()
@@ -40,7 +41,7 @@ class SentenceClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.override_length is not None:
-            return self[randrange(len(self.dataset))]
+            return random.choice(self.dataset)
 
         return self.dataset[idx]
 
@@ -87,7 +88,7 @@ class SentenceClassificationTestDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.override_length is not None:
-            return self[randrange(len(self.dataset))]
+            return random.choice(self.dataset)
 
         return self.dataset[idx]
 
@@ -132,7 +133,7 @@ class SentencePairDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.override_length is not None:
-            return self[randrange(len(self.dataset))]
+            return random.choice(self.dataset)
 
         return self.dataset[idx]
 
