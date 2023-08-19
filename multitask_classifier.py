@@ -319,6 +319,9 @@ def train_multitask(args):
             full_loss = sts_loss + para_loss + sst_loss
             full_loss.backward()
 
+            train_loss += full_loss.item()
+            num_batches += 1
+
             optimizer.step()
 
 
