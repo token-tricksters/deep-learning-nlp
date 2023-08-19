@@ -141,6 +141,7 @@ class BertModel(BertPreTrainedModel):
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
 
+        spacy.prefer_gpu()
         self.nlp = spacy.load("en_core_web_sm")
 
         pos_tags_spacy = self.nlp.get_pipe("tagger").labels
