@@ -267,7 +267,7 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
-        for sts, para, sst in zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader):
+        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader)):
             
             optimizer.zero_grad()
 
@@ -322,8 +322,8 @@ def train_multitask(args):
             optimizer.step()
 
 
-            print(full_loss)
-            print("DONE")
+            #print(full_loss.item())
+            #print("DONE")
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
