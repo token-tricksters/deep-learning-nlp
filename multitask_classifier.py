@@ -195,7 +195,7 @@ def train_multitask(args):
     sts_dev_dataloader = None
     total_num_batches = 0
     if train_all_datasets or args.sst:
-        sst_train_data = SentenceClassificationDataset(sst_train_data, args, samples_per_epoch=args.samples_per_epoch)
+        sst_train_data = SentenceClassificationDataset(sst_train_data, args, override_length=args.samples_per_epoch)
         sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
         sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
@@ -205,7 +205,7 @@ def train_multitask(args):
         total_num_batches += len(sst_train_dataloader)
 
     if train_all_datasets or args.para:
-        para_train_data = SentencePairDataset(para_train_data, args, samples_per_epoch=args.samples_per_epoch)
+        para_train_data = SentencePairDataset(para_train_data, args, override_length=args.samples_per_epoch)
         para_dev_data = SentencePairDataset(para_dev_data, args)
 
         para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
@@ -215,7 +215,7 @@ def train_multitask(args):
         total_num_batches += len(para_train_dataloader)
 
     if train_all_datasets or args.sts:
-        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True, samples_per_epoch=args.samples_per_epoch)
+        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch)
         sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
         sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
