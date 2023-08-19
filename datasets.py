@@ -82,7 +82,7 @@ class SentenceClassificationTestDataset(Dataset):
 
     def __len__(self):
         if self.real_length:
-            return self.real_length()
+            return self.real_len()
         return 150000
 
     def __getitem__(self, idx):
@@ -127,7 +127,7 @@ class SentencePairDataset(Dataset):
 
     def __len__(self):
         if self.real_length:
-            return self.real_length()
+            return self.real_len()
         return 150000
 
     def __getitem__(self, idx):
