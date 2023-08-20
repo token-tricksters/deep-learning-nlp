@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from bert import BertModel
+from moebert import MixtureOfExperts
 from AttentionLayer import AttentionLayer
 from optimizer import AdamW
 from tqdm import tqdm
@@ -50,7 +50,7 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.bert = MixtureOfExperts()
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
