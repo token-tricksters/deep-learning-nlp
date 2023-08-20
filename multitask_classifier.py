@@ -326,8 +326,6 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            print(logits)
-            print(b_labels)
             para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             # Train on SST dataset
