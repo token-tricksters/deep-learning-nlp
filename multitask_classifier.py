@@ -60,17 +60,19 @@ class MultitaskBERT(nn.Module):
         # Common layers
         self.activation = nn.ReLU()
         self.cosineSimilarity = nn.CosineSimilarity(dim=1, eps=1e-6)
-        self.attention_layer = AttentionLayer(config.hidden_size)
 
         # Similarity task
         sts_hidden_size = 256
+        self.similarity_attention_layer = AttentionLayer(config.hidden_size)
         self.similarity_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
 
         # Sentiment task
+        self.attention_layer = AttentionLayer(config.hidden_size)
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
         # Paraphrase task
         para_hidden_size = 256
+        self.para_attention_layer = AttentionLayer(config.hidden_size)
         self.para_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
 
     def forward(self, input_ids, attention_mask):
@@ -81,8 +83,7 @@ class MultitaskBERT(nn.Module):
         # (e.g., by adding other layers).
 
         result = self.bert(input_ids, attention_mask)
-        attention_result = self.attention_layer(result["last_hidden_state"])
-        return attention_result
+        return result
 
     def predict_sentiment(self, input_ids, attention_mask):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
@@ -90,7 +91,7 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        return self.linear_layer(self.forward(input_ids, attention_mask))
+        return self.linear_layer(self.attention_layer(self.forward(input_ids, attention_mask)))
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
@@ -101,8 +102,8 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.para_attention_layer(self.forward(input_ids_1, attention_mask_1))
+        bert_embeddings_2 = self.para_attention_layer(self.forward(input_ids_2, attention_mask_2))
 
         embeddings_1_representation = self.activation(
             self.para_representation1(bert_embeddings_1)) + bert_embeddings_1
@@ -122,8 +123,8 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.similarity_attention_layer(self.forward(input_ids_1, attention_mask_1))
+        bert_embeddings_2 = self.similarity_attention_layer(self.forward(input_ids_2, attention_mask_2))
 
         embeddings_1_representation = self.activation(
             self.similarity_representation1(bert_embeddings_1)) + bert_embeddings_1
