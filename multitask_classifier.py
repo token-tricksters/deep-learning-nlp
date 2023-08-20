@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
-from layers.AttentionLayer import AttentionLayer
+from AttentionLayer import AttentionLayer
 from optimizer import AdamW
 from tqdm import tqdm
 
@@ -217,7 +217,7 @@ def train_multitask(args):
     sts_dev_dataloader = None
     total_num_batches = 0
     if train_all_datasets or args.sst:
-        sst_train_data = SentenceClassificationDataset(sst_train_data, args)
+        sst_train_data = SentenceClassificationDataset(sst_train_data, args, override_length=args.samples_per_epoch)
         sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
         sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
@@ -227,7 +227,7 @@ def train_multitask(args):
         total_num_batches += len(sst_train_dataloader)
 
     if train_all_datasets or args.para:
-        para_train_data = SentencePairDataset(para_train_data, args)
+        para_train_data = SentencePairDataset(para_train_data, args, override_length=args.samples_per_epoch)
         para_dev_data = SentencePairDataset(para_dev_data, args)
 
         para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
@@ -237,7 +237,7 @@ def train_multitask(args):
         total_num_batches += len(para_train_dataloader)
 
     if train_all_datasets or args.sts:
-        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
+        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch)
         sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
         sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
@@ -288,91 +288,67 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        if train_all_datasets or args.sts:
-            for batch in tqdm(sts_train_dataloader, desc=f'train-sts-{epoch}', disable=TQDM_DISABLE):
-                # Train on STS dataset
-                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                    batch['labels'])
 
-                b_ids_1 = b_ids_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
+        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader), total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
 
-                b_ids_2 = b_ids_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
+            optimizer.zero_grad()
 
-                b_labels = b_labels.to(device)
+            # Train on STS dataset
+            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                sts['token_ids_1'], sts['attention_mask_1'], sts['token_ids_2'], sts['attention_mask_2'],
+                sts['labels'])
 
-                optimizer.zero_grad()
-                logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                b_labels = b_labels.to(torch.float32)
-                sts_loss = F.mse_loss(logits, b_labels.view(-1))
+            b_ids_1 = b_ids_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
 
-                sts_loss.backward()
-                optimizer.step()
+            b_ids_2 = b_ids_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
 
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
+            b_labels = b_labels.to(device)
 
-            train_loss += sts_loss.item()
-            writer.add_scalar("Loss/STS/Minibatches", sts_loss.item(), loss_sts_idx_value)
-            loss_sts_idx_value += 1
-            num_batches += 1
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            b_labels = b_labels.to(torch.float32)
+            sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
-        if train_all_datasets or args.para:
-            for batch in tqdm(para_train_dataloader, desc=f'train-para-{epoch}', disable=TQDM_DISABLE):
-                # Train on PARAPHRASE dataset
-                b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    batch['token_ids_1'], batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'],
-                    batch['labels'])
+            # Train on PARAPHRASE dataset
+            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
+                para['token_ids_1'], para['attention_mask_1'], para['token_ids_2'], para['attention_mask_2'],
+                para['labels'])
 
-                b_ids_1 = b_ids_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
+            b_ids_1 = b_ids_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
 
-                b_ids_2 = b_ids_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
+            b_ids_2 = b_ids_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
 
-                b_labels = b_labels.to(device)
+            b_labels = b_labels.to(device)
 
-                optimizer.zero_grad()
+
                 logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
                 para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
-                para_loss.backward()
-                optimizer.step()
+            # Train on SST dataset
+            b_ids, b_mask, b_labels = (sst['token_ids'],
+                                        sst['attention_mask'], sst['labels'])
 
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
+            b_ids = b_ids.to(device)
+            b_mask = b_mask.to(device)
+            b_labels = b_labels.to(device)
 
-            train_loss += para_loss.item()
-            writer.add_scalar("Loss/PARA/Minibatches", para_loss.item(), loss_para_idx_value)
-            loss_para_idx_value += 1
+            logits = model.predict_sentiment(b_ids, b_mask)
+            sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+
+            full_loss = sts_loss + para_loss + sst_loss
+            full_loss.backward()
+
+            train_loss += full_loss.item()
             num_batches += 1
 
-        if train_all_datasets or args.sst:
-            for batch in tqdm(sst_train_dataloader, desc=f'train-sst-{epoch}', disable=TQDM_DISABLE):
-                # Train on SST dataset
-                b_ids, b_mask, b_labels = (batch['token_ids'],
-                                           batch['attention_mask'], batch['labels'])
+            optimizer.step()
 
-                b_ids = b_ids.to(device)
-                b_mask = b_mask.to(device)
-                b_labels = b_labels.to(device)
 
-                optimizer.zero_grad()
-                logits = model.predict_sentiment(b_ids, b_mask)
-                sst_loss = F.cross_entropy(logits, b_labels.view(-1))
-
-                sst_loss.backward()
-                optimizer.step()
-
-                if args.scheduler == 'cosine':
-                    scheduler.step(epoch + num_batches / total_num_batches)
-
-            train_loss += sst_loss.item()
-            writer.add_scalar("Loss/SST/Minibatches", sst_loss.item(), loss_sst_idx_value)
-            loss_sst_idx_value += 1
-            num_batches += 1
+            #print(full_loss.item())
+            #print("DONE")
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -444,6 +420,9 @@ def get_args():
 
     parser.add_argument("--seed", type=int, default=11711)
     parser.add_argument("--epochs", type=int, default=10)
+
+    parser.add_argument("--samples_per_epoch", type=int, default=None)
+
     parser.add_argument("--option", type=str,
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")

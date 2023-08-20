@@ -27,5 +27,7 @@ python --version
 python -m torch.utils.collect_env
 nvcc -V
 
+git branch
+
 # Run the script:
-python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 128 --epochs 100 --scheduler plateau --option finetune
+python -u multitask_classifier.py --use_gpu --batch_size 64 --option finetune --samples_per_epoch 30000 --epochs 30
