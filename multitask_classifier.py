@@ -1,7 +1,9 @@
 from pprint import pformat
-import time, random, numpy as np, argparse, sys, re, os
+import random, argparse, sys, os, subprocess
 from datetime import datetime
 from types import SimpleNamespace
+
+import numpy as np
 
 import torch
 from torch import nn
@@ -234,8 +236,38 @@ def train_multitask(args):
 
     config = SimpleNamespace(**config)
 
-    print("Multitask BERT model:", file=sys.stderr)
+    separator = "=" * 60  # Adjust as needed
+    print(separator, file=sys.stderr)
+    print("    Multitask BERT Model Configuration", file=sys.stderr)
+    print(separator, file=sys.stderr)
+
     print(pformat(vars(args)), file=sys.stderr)
+
+    print("-" * 60, file=sys.stderr)  # Adjust as needed
+
+    # Print Git info
+    branch = (
+        subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+        .decode("utf-8")
+        .strip()
+    )
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()[:8]
+    is_modified = (
+        "(!)"
+        if subprocess.check_output(["git", "status", "--porcelain"]).decode("utf-8").strip()
+        else ""
+    )
+
+    print(f"Git Branch: {branch}", file=sys.stderr)
+    print(f"Git Hash: {commit} {is_modified}", file=sys.stderr)
+
+    print("-" * 60, file=sys.stderr)  # Adjust as needed
+
+    # Print Command Executed
+    print(f"Command: {' '.join(sys.argv)}", file=sys.stderr)
+
+    print(separator, file=sys.stderr)
+
 
     model = MultitaskBERT(config)
     model = model.to(device)
