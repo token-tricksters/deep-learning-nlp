@@ -75,6 +75,8 @@ class MultitaskBERT(nn.Module):
         para_hidden_size = 256
         self.para_attention_layer = AttentionLayer(config.hidden_size)
         self.para_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.para_output_layer = nn.Linear(1, 2)
+
 
     def forward(self, input_ids, attention_mask):
         'Takes a batch of sentences and produces embeddings for them.'
@@ -111,9 +113,9 @@ class MultitaskBERT(nn.Module):
         embeddings_2_representation = self.activation(
             self.para_representation1(bert_embeddings_2)) + bert_embeddings_2
 
-        similarity = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation)
+        similarity = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation).unsqueeze(1)
 
-        paraphrase_logits = torch.cat([similarity.unsqueeze(1), -similarity.unsqueeze(1)], dim=1)
+        paraphrase_logits = self.activation(self.para_output_layer(similarity))
 
         return paraphrase_logits
 
@@ -324,6 +326,8 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            print(logits)
+            print(b_labels)
             para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             # Train on SST dataset
