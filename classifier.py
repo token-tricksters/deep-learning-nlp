@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
-from layers.AttentionLayer import AttentionLayer
+from AttentionLayer import AttentionLayer
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
