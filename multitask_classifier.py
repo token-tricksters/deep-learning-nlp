@@ -82,7 +82,7 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
 
-        result = self.bert(input_ids, attention_mask)
+        result = self.bert(input_ids, attention_mask)["last_hidden_state"]
         return result
 
     def predict_sentiment(self, input_ids, attention_mask):
