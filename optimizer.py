@@ -1,8 +1,4 @@
-from calendar import c
-from hmac import new
-from turtle import st
 from typing import Callable, Iterable, Tuple
-import math
 
 import torch
 from torch.optim import Optimizer
@@ -264,7 +260,6 @@ class SophiaH(Optimizer):
         )
         super(SophiaH, self).__init__(params, defaults)
 
-
     def update_hessian(self):
         for group in self.param_groups:
             _, beta2 = group["betas"]
@@ -281,13 +276,12 @@ class SophiaH(Optimizer):
 
                 # Compute < grad, u >
                 gu = torch.matmul(gradient.view(-1), u.view(-1))
-                                
+
                 # Differentiate < grad, u > wrt to the parameters
                 hvp = torch.autograd.grad(gu, gradient, retain_graph=True)[0]
 
                 # u ⊙ hvp
                 state["hessian"].mul_(beta2).addcmul_(u, hvp, value=1 - beta2)
-
 
     @torch.no_grad()
     def step(self, closure: Callable = None):
