@@ -172,7 +172,7 @@ class BertModel(BertPreTrainedModel):
 
         self.init_weights()
 
-    def embed(self, input_ids, additional_input=True):
+    def embed(self, input_ids, additional_input=False):
         input_shape = input_ids.size()
         seq_length = input_shape[1]
 
@@ -243,13 +243,13 @@ class BertModel(BertPreTrainedModel):
 
         return hidden_states
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids, attention_mask, additional_input=False):
         """
         input_ids: [batch_size, seq_len], seq_len is the max length of the batch
         attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
         """
         # get the embedding for each input token
-        embedding_output = self.embed(input_ids=input_ids)
+        embedding_output = self.embed(input_ids=input_ids, additional_input=additional_input)
 
         # feed to a transformer (a stack of BertLayers)
         sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
