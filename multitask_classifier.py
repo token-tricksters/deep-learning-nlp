@@ -65,6 +65,7 @@ class MultitaskBERT(nn.Module):
         sts_hidden_size = 256
         self.similarity_attention_layer = AttentionLayer(config.hidden_size)
         self.similarity_representation1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.similarity_output_layer = nn.Linear(1, 1)
 
         # Sentiment task
         self.attention_layer = AttentionLayer(config.hidden_size)
@@ -110,9 +111,11 @@ class MultitaskBERT(nn.Module):
         embeddings_2_representation = self.activation(
             self.para_representation1(bert_embeddings_2)) + bert_embeddings_2
 
-        output = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation)
+        similarity = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation)
 
-        return output
+        paraphrase_logits = torch.cat([similarity.unsqueeze(1), -similarity.unsqueeze(1)], dim=1)
+
+        return paraphrase_logits
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
@@ -131,8 +134,11 @@ class MultitaskBERT(nn.Module):
         embeddings_2_representation = self.activation(
             self.similarity_representation1(bert_embeddings_2)) + bert_embeddings_2
 
-        output = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation)
-        return output
+        similarity = self.cosineSimilarity(embeddings_1_representation, embeddings_2_representation).unsqueeze(1)
+
+        output = self.activation(self.similarity_output_layer(similarity))
+
+        return output.squeeze()
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -318,8 +324,7 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            b_labels = b_labels.to(torch.float32)
-            para_loss = F.mse_loss(logits, b_labels.view(-1))
+            para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             # Train on SST dataset
             b_ids, b_mask, b_labels = (sst['token_ids'],
