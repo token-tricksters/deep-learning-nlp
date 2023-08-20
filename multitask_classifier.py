@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from bert import BertModel
 from layers.AttentionLayer import AttentionLayer
-from optimizer import AdamW, SophiaG
+from optimizer import AdamW, SophiaH
 from tqdm import tqdm
 
 from datasets import (
@@ -278,8 +278,8 @@ def train_multitask(args):
 
     if args.optimizer == "adamw":
         optimizer = AdamW(model.parameters(), lr=lr)
-    elif args.optimizer == "sophiag":
-        optimizer = SophiaG(
+    elif args.optimizer == "sophiah":
+        optimizer = SophiaH(
             model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1
         )
     else:
@@ -329,25 +329,14 @@ def train_multitask(args):
 
                     sts_loss.backward()
 
+                # Check if we use the Sophia Optimizer
+                if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
+                    # Update the Hessian EMA
+                    optimizer.update_hessian()
+                
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
-                optimizer.zero_grad()
-
-                # Check if we use the Sophia Optimizer
-                if args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1:
-                    # Update the Hessian EMA
-                    with ctx:
-                        logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                        samp_dist = torch.distributions.Categorical(logits=logits)
-                        y_sample = samp_dist.sample()
-                        # add a dimension, now logits shape is [1, bs] and logits is [1] (Which is wrong TODO)
-                        loss_sampled = F.cross_entropy(logits.unsqueeze(0), y_sample.view(-1))
-                    loss_sampled.backward()
-
-                    # Potentially: Clip gradients using
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                    optimizer.update_hessian(bs=args.batch_size)
-                    optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad(set_to_none=True)
 
                 if args.scheduler == "cosine":
                     scheduler.step(epoch + num_batches / total_num_batches)
@@ -377,26 +366,15 @@ def train_multitask(args):
                     para_loss = F.mse_loss(logits, b_labels.view(-1))
                 para_loss.backward()
 
+                 # Check if we use the Sophia Optimizer
+                if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
+                    # Update the Hessian EMA
+                    optimizer.update_hessian()
+                
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
 
-                optimizer.zero_grad()
-                # Check if we use the Sophia Optimizer
-                if args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1:
-                    # Update the Hessian EMA
-                    with ctx:
-                        logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                        samp_dist = torch.distributions.Categorical(logits=logits)
-                        y_sample = samp_dist.sample()
-                        # add a dimension, now logits shape is [1, bs] and logits is [1] (Which is wrong TODO)
-                        # TODO SophiaH
-                        loss_sampled = F.cross_entropy(logits.unsqueeze(0), y_sample.view(-1))
-                    loss_sampled.backward()
-
-                    # Potentially: Clip gradients using
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                    optimizer.update_hessian(bs=args.batch_size)
-                    optimizer.zero_grad(set_to_none=True)
 
                 if args.scheduler == "cosine":
                     scheduler.step(epoch + num_batches / total_num_batches)
@@ -423,24 +401,15 @@ def train_multitask(args):
                     sst_loss = F.cross_entropy(logits, b_labels.view(-1))
                 sst_loss.backward()
 
+                # Check if we use the Sophia Optimizer
+                # This is the only task potentially compatible with SophiaG
+                if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
+                    # Update the Hessian EMA
+                    optimizer.update_hessian()
+                
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
-
-                optimizer.zero_grad()
-                # Check if we use the Sophia Optimizer
-                if args.optimizer == "sophiag" and num_batches % hess_interval == hess_interval - 1:
-                    # Update the Hessian EMA
-                    with ctx:
-                        logits = model.predict_sentiment(b_ids, b_mask)
-                        samp_dist = torch.distributions.Categorical(logits=logits)
-                        y_sample = samp_dist.sample()
-                        loss_sampled = F.cross_entropy(logits, y_sample.view(-1))
-                    loss_sampled.backward()
-
-                    # Potentially: Clip gradients using
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                    optimizer.update_hessian(bs=args.batch_size)
-                    optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad(set_to_none=True)
 
                 if args.scheduler == "cosine":
                     scheduler.step(epoch + num_batches / total_num_batches)
@@ -560,7 +529,7 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        ddefault=1e-5 if args.option == "finetune" else 1e-3,
+        default=1e-5 if args.option == "finetune" else 1e-3,
     )
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--local_files_only", action="store_true")
