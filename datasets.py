@@ -26,13 +26,13 @@ def preprocess_string(s):
                     .split())
 
 
-def get_pos_ner_tags(additional_input, token_ids, nlp, pos_tag_vocab, ner_tag_vocab):
+def get_pos_ner_tags(additional_input, token_ids, nlp, pos_tag_vocab, ner_tag_vocab, tokenizer):
     if additional_input:
         all_pos_tags = []
         all_ner_tags = []
         for sequence_id in token_ids:
             # Convert input_ids to tokens using the BERT tokenizer
-            tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
+            tokens = tokenizer.convert_ids_to_tokens(sequence_id.tolist())
 
             # Convert tokens to strings
             token_strings = [token if token != '[PAD]' else ' ' for token in tokens]
@@ -101,7 +101,7 @@ class SentenceClassificationDataset(Dataset):
         attention_mask = torch.LongTensor(encoding['attention_mask'])
         labels = torch.LongTensor(labels)
         pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
-                                                      self.ner_tag_vocab)
+                                                      self.ner_tag_vocab, self.tokenizer)
 
         return token_ids, attention_mask, labels, sents, sent_ids, pos_tags_ids, ner_tags_ids
 
@@ -163,7 +163,7 @@ class SentenceClassificationTestDataset(Dataset):
         attention_mask = torch.LongTensor(encoding['attention_mask'])
 
         pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
-                                                      self.ner_tag_vocab)
+                                                      self.ner_tag_vocab, self.tokenizer)
 
         return token_ids, attention_mask, sents, sent_ids, pos_tags_ids, ner_tags_ids
 
@@ -238,10 +238,10 @@ class SentencePairDataset(Dataset):
             labels = torch.LongTensor(labels)
 
         pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
-                                                      self.ner_tag_vocab)
+                                                      self.ner_tag_vocab, self.tokenizer)
 
         pos_tags_ids2, ner_tags_ids2 = get_pos_ner_tags(self.additional_input, token_ids2, self.nlp, self.pos_tag_vocab,
-                                                        self.ner_tag_vocab)
+                                                        self.ner_tag_vocab, self.tokenizer)
 
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
@@ -310,10 +310,10 @@ class SentencePairTestDataset(Dataset):
         token_type_ids2 = torch.LongTensor(encoding2['token_type_ids'])
 
         pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
-                                                      self.ner_tag_vocab)
+                                                      self.ner_tag_vocab, self.tokenizer)
 
         pos_tags_ids2, ner_tags_ids2 = get_pos_ner_tags(self.additional_input, token_ids2, self.nlp, self.pos_tag_vocab,
-                                                        self.ner_tag_vocab)
+                                                        self.ner_tag_vocab, self.tokenizer)
 
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
