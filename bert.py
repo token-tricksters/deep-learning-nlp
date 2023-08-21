@@ -195,7 +195,7 @@ class BertModel(BertPreTrainedModel):
             all_ner_tags = []
             for sequence_id in input_ids:
                 if sequence_id in self.input_cache:
-                    sequence_pos_indices, sequence_ner_indices = self.input_cache[sequence_id]
+                    sequence_pos_indices, sequence_ner_indices = self.input_cache[hash(str(sequence_id))]
                     all_pos_tags.append(sequence_pos_indices)
                     all_ner_tags.append(sequence_ner_indices)
                 else:
@@ -215,7 +215,7 @@ class BertModel(BertPreTrainedModel):
                     sequence_pos_indices = [self.pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
                     sequence_ner_indices = [self.ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
 
-                    self.input_cache[sequence_id] = (sequence_pos_indices, sequence_ner_indices)
+                    self.input_cache[hash(str(sequence_id))] = (sequence_pos_indices, sequence_ner_indices)
                     all_pos_tags.append(sequence_pos_indices)
                     all_ner_tags.append(sequence_ner_indices)
 
