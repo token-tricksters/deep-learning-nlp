@@ -1,4 +1,5 @@
 import time, random, numpy as np, argparse, sys, re, os
+from contextlib import nullcontext
 from datetime import datetime
 from types import SimpleNamespace
 import csv
@@ -14,7 +15,7 @@ from AttentionLayer import AttentionLayer
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel
-from optimizer import AdamW
+from optimizer import AdamW, SophiaG
 from tqdm import tqdm
 
 TQDM_DISABLE = False
@@ -32,12 +33,12 @@ def seed_everything(seed=11711):
 
 
 class BertSentimentClassifier(torch.nn.Module):
-    '''
+    """
     This module performs sentiment classification using BERT embeddings on the SST dataset.
 
     In the SST dataset, there are 5 sentiment categories (from 0 - "negative" to 4 - "positive").
     Thus, your forward() should return one logit for each of the 5 classes.
-    '''
+    """
 
     def __init__(self, config):
         super(BertSentimentClassifier, self).__init__()
@@ -46,9 +47,9 @@ class BertSentimentClassifier(torch.nn.Module):
 
         # Pretrain mode does not require updating bert paramters.
         for param in self.bert.parameters():
-            if config.option == 'pretrain':
+            if config.option == "pretrain":
                 param.requires_grad = False
-            elif config.option == 'finetune':
+            elif config.option == "finetune":
                 param.requires_grad = True
 
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -57,7 +58,7 @@ class BertSentimentClassifier(torch.nn.Module):
         self.linear_layer = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids, attention_mask):
-        '''Takes a batch of sentences and returns logits for sentiment classes'''
+        """Takes a batch of sentences and returns logits for sentiment classes"""
         # The final BERT contextualized embedding is the hidden state of [CLS] token (the first token).
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
@@ -86,9 +87,9 @@ class SentimentDataset(Dataset):
         labels = [x[1] for x in data]
         sent_ids = [x[2] for x in data]
 
-        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
-        token_ids = torch.LongTensor(encoding['input_ids'])
-        attention_mask = torch.LongTensor(encoding['attention_mask'])
+        encoding = self.tokenizer(sents, return_tensors="pt", padding=True, truncation=True)
+        token_ids = torch.LongTensor(encoding["input_ids"])
+        attention_mask = torch.LongTensor(encoding["attention_mask"])
         labels = torch.LongTensor(labels)
 
         return token_ids, attention_mask, labels, sents, sent_ids
@@ -97,11 +98,11 @@ class SentimentDataset(Dataset):
         token_ids, attention_mask, labels, sents, sent_ids = self.pad_data(all_data)
 
         batched_data = {
-            'token_ids': token_ids,
-            'attention_mask': attention_mask,
-            'labels': labels,
-            'sents': sents,
-            'sent_ids': sent_ids
+            "token_ids": token_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+            "sents": sents,
+            "sent_ids": sent_ids,
         }
 
         return batched_data
@@ -123,9 +124,9 @@ class SentimentTestDataset(Dataset):
         sents = [x[0] for x in data]
         sent_ids = [x[1] for x in data]
 
-        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
-        token_ids = torch.LongTensor(encoding['input_ids'])
-        attention_mask = torch.LongTensor(encoding['attention_mask'])
+        encoding = self.tokenizer(sents, return_tensors="pt", padding=True, truncation=True)
+        token_ids = torch.LongTensor(encoding["input_ids"])
+        attention_mask = torch.LongTensor(encoding["attention_mask"])
 
         return token_ids, attention_mask, sents, sent_ids
 
@@ -133,37 +134,37 @@ class SentimentTestDataset(Dataset):
         token_ids, attention_mask, sents, sent_ids = self.pad_data(all_data)
 
         batched_data = {
-            'token_ids': token_ids,
-            'attention_mask': attention_mask,
-            'sents': sents,
-            'sent_ids': sent_ids
+            "token_ids": token_ids,
+            "attention_mask": attention_mask,
+            "sents": sents,
+            "sent_ids": sent_ids,
         }
 
         return batched_data
 
 
 # Load the data: a list of (sentence, label)
-def load_data(filename, flag='train'):
+def load_data(filename, flag="train"):
     num_labels = {}
     data = []
-    if flag == 'test':
-        with open(filename, 'r') as fp:
-            for record in csv.DictReader(fp, delimiter='\t'):
-                sent = record['sentence'].lower().strip()
-                sent_id = record['id'].lower().strip()
+    if flag == "test":
+        with open(filename, "r") as fp:
+            for record in csv.DictReader(fp, delimiter="\t"):
+                sent = record["sentence"].lower().strip()
+                sent_id = record["id"].lower().strip()
                 data.append((sent, sent_id))
     else:
-        with open(filename, 'r') as fp:
-            for record in csv.DictReader(fp, delimiter='\t'):
-                sent = record['sentence'].lower().strip()
-                sent_id = record['id'].lower().strip()
-                label = int(record['sentiment'].strip())
+        with open(filename, "r") as fp:
+            for record in csv.DictReader(fp, delimiter="\t"):
+                sent = record["sentence"].lower().strip()
+                sent_id = record["id"].lower().strip()
+                label = int(record["sentiment"].strip())
                 if label not in num_labels:
                     num_labels[label] = len(num_labels)
                 data.append((sent, label, sent_id))
         print(f"load {len(data)} data from {filename}")
 
-    if flag == 'train':
+    if flag == "train":
         return data, len(num_labels)
     else:
         return data
@@ -176,9 +177,14 @@ def model_eval(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-        b_ids, b_mask, b_labels, b_sents, b_sent_ids = batch['token_ids'], batch['attention_mask'], \
-            batch['labels'], batch['sents'], batch['sent_ids']
+    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+        b_ids, b_mask, b_labels, b_sents, b_sent_ids = (
+            batch["token_ids"],
+            batch["attention_mask"],
+            batch["labels"],
+            batch["sents"],
+            batch["sent_ids"],
+        )
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
@@ -193,7 +199,7 @@ def model_eval(dataloader, model, device):
         sents.extend(b_sents)
         sent_ids.extend(b_sent_ids)
 
-    f1 = f1_score(y_true, y_pred, average='macro')
+    f1 = f1_score(y_true, y_pred, average="macro")
     acc = accuracy_score(y_true, y_pred)
 
     return acc, f1, y_pred, y_true, sents, sent_ids
@@ -204,9 +210,13 @@ def model_test_eval(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-        b_ids, b_mask, b_sents, b_sent_ids = batch['token_ids'], batch['attention_mask'], \
-            batch['sents'], batch['sent_ids']
+    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+        b_ids, b_mask, b_sents, b_sent_ids = (
+            batch["token_ids"],
+            batch["attention_mask"],
+            batch["sents"],
+            batch["sent_ids"],
+        )
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
@@ -224,13 +234,13 @@ def model_test_eval(dataloader, model, device):
 
 def save_model(model, optimizer, args, config, filepath):
     save_info = {
-        'model': model.state_dict(),
-        'optim': optimizer.state_dict(),
-        'args': args,
-        'model_config': config,
-        'system_rng': random.getstate(),
-        'numpy_rng': np.random.get_state(),
-        'torch_rng': torch.random.get_rng_state(),
+        "model": model.state_dict(),
+        "optim": optimizer.state_dict(),
+        "args": args,
+        "model_config": config,
+        "system_rng": random.getstate(),
+        "numpy_rng": np.random.get_state(),
+        "torch_rng": torch.random.get_rng_state(),
     }
 
     torch.save(save_info, filepath)
@@ -243,16 +253,18 @@ def train(args):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
-    train_data, num_labels = load_data(args.train, 'train')
-    dev_data = load_data(args.dev, 'valid')
+    train_data, num_labels = load_data(args.train, "train")
+    dev_data = load_data(args.dev, "valid")
 
     train_dataset = SentimentDataset(train_data, args)
     dev_dataset = SentimentDataset(dev_data, args)
 
-    train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size,
-                                  collate_fn=train_dataset.collate_fn)
-    dev_dataloader = DataLoader(dev_dataset, shuffle=False, batch_size=args.batch_size,
-                                collate_fn=dev_dataset.collate_fn)
+    train_dataloader = DataLoader(
+        train_dataset, shuffle=True, batch_size=args.batch_size, collate_fn=train_dataset.collate_fn
+    )
+    dev_dataloader = DataLoader(
+        dev_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=dev_dataset.collate_fn
+    )
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
@@ -263,12 +275,20 @@ def train(args):
               'local_files_only': args.local_files_only}
 
     config = SimpleNamespace(**config)
+    ctx = nullcontext() if not args.use_gpu else torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
 
     model = BertSentimentClassifier(config)
     model = model.to(device)
 
     lr = args.lr
-    optimizer = AdamW(model.parameters(), lr=lr)
+    if args.optimizer == "adamw":
+        optimizer = AdamW(model.parameters(), lr=lr)
+    elif args.optimizer == "sophiag":
+        optimizer = SophiaG(model.parameters(), lr=lr, eps=1e-12, rho=0.03, betas=(0.985, 0.99), weight_decay=2e-1)
+
+    hess_interval = 10
+    iter_num = 0
+
     best_dev_acc = 0
 
     # Initialize the tensorboard writer
@@ -280,26 +300,50 @@ def train(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-            b_ids, b_mask, b_labels = (batch['token_ids'],
-                                       batch['attention_mask'], batch['labels'])
+
+        for batch in tqdm(train_dataloader, desc=f"train-{epoch}", disable=TQDM_DISABLE):
+            b_ids, b_mask, b_labels = (batch["token_ids"], batch["attention_mask"], batch["labels"])
 
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
             b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
-            logits = model(b_ids, b_mask)
-            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
-
+            with ctx:
+                logits = model(b_ids, b_mask)
+                loss = F.cross_entropy(logits, b_labels.view(-1))
             loss.backward()
+
+            # Potentially: Clip gradients using
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
+
+            optimizer.zero_grad(set_to_none=True)
+
+            # Check if we use the Sophia Optimizer
+            if (
+                hasattr(optimizer, "update_hessian")
+                and iter_num % hess_interval == hess_interval - 1
+            ):
+                # Update the Hessian EMA
+                with ctx:
+                    logits = model(b_ids, b_mask)
+                    samp_dist = torch.distributions.Categorical(logits=logits)
+                    y_sample = samp_dist.sample()
+                    loss_sampled = F.cross_entropy(logits, y_sample.view(-1))
+                loss_sampled.backward()
+
+                # Potentially: Clip gradients using
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.update_hessian(bs=args.batch_size)
+
+                optimizer.zero_grad(set_to_none=True)
 
             train_loss += loss.item()
 
             writer.add_scalar("Loss/Minibatches", loss.item(), loss_idx_value)
             loss_idx_value += 1
             num_batches += 1
+            iter_num += 1
 
         train_loss = train_loss / (num_batches)
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -323,28 +367,38 @@ def train(args):
 
 def test(args):
     with torch.no_grad():
-        device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        device = torch.device("cuda") if args.use_gpu else torch.device("cpu")
         saved = torch.load(args.filepath)
-        config = saved['model_config']
+        config = saved["model_config"]
         model = BertSentimentClassifier(config)
-        model.load_state_dict(saved['model'])
+        model.load_state_dict(saved["model"])
         model = model.to(device)
         print(f"load model from {args.filepath}")
 
-        dev_data = load_data(args.dev, 'valid')
+        dev_data = load_data(args.dev, "valid")
         dev_dataset = SentimentDataset(dev_data, args)
-        dev_dataloader = DataLoader(dev_dataset, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=dev_dataset.collate_fn)
+        dev_dataloader = DataLoader(
+            dev_dataset,
+            shuffle=False,
+            batch_size=args.batch_size,
+            collate_fn=dev_dataset.collate_fn,
+        )
 
-        test_data = load_data(args.test, 'test')
+        test_data = load_data(args.test, "test")
         test_dataset = SentimentTestDataset(test_data, args)
-        test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size,
-                                     collate_fn=test_dataset.collate_fn)
+        test_dataloader = DataLoader(
+            test_dataset,
+            shuffle=False,
+            batch_size=args.batch_size,
+            collate_fn=test_dataset.collate_fn,
+        )
 
-        dev_acc, dev_f1, dev_pred, dev_true, dev_sents, dev_sent_ids = model_eval(dev_dataloader, model, device)
-        print('DONE DEV')
+        dev_acc, dev_f1, dev_pred, dev_true, dev_sents, dev_sent_ids = model_eval(
+            dev_dataloader, model, device
+        )
+        print("DONE DEV")
         test_pred, test_sents, test_sent_ids = model_test_eval(test_dataloader, model, device)
-        print('DONE Test')
+        print("DONE Test")
         with open(args.dev_out, "w+") as f:
             print(f"dev acc :: {dev_acc :.3f}")
             f.write(f"id \t Predicted_Sentiment \n")
@@ -372,10 +426,12 @@ def get_args():
 
     parser.add_argument("--batch_size", help='sst: 64 can fit a 12GB GPU', type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+    parser.add_argument("--optimizer", type=str, default="adamw")
     parser.add_argument("--local_files_only", action='store_true')
 
     args, _ = parser.parse_known_args()
 
+    # TODO: Possibly change defaults based on optimizer
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5 if args.option == 'finetune' else 1e-3)
 
@@ -388,25 +444,26 @@ if __name__ == "__main__":
     seed_everything(args.seed)
     # args.filepath = f'{args.option}-{args.epochs}-{args.lr}.pt'
 
-    print('Training Sentiment Classifier on SST...')
+    print("Training Sentiment Classifier on SST...")
     config = SimpleNamespace(
-        filepath='sst-classifier.pt',
+        filepath="sst-classifier.pt",
         lr=args.lr,
         use_gpu=args.use_gpu,
         epochs=args.epochs,
         batch_size=args.batch_size,
         hidden_dropout_prob=args.hidden_dropout_prob,
-        train='data/ids-sst-train.csv',
-        dev='data/ids-sst-dev.csv',
-        test='data/ids-sst-test-student.csv',
+        train="data/ids-sst-train.csv",
+        dev="data/ids-sst-dev.csv",
+        test="data/ids-sst-test-student.csv",
         option=args.option,
         dev_out='predictions/' + args.option + '-sst-dev-out.csv',
         test_out='predictions/' + args.option + '-sst-test-out.csv',
         logdir=args.logdir,
+        optimizer=args.optimizer,
         local_files_only=args.local_files_only
     )
 
     train(config)
 
-    print('Evaluating on SST...')
+    print("Evaluating on SST...")
     test(config)
