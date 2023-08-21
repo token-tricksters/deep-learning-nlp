@@ -15,6 +15,7 @@ from tokenizer import BertTokenizer
 from random import randrange
 import random
 
+
 def preprocess_string(s):
     return ' '.join(s.lower()
                     .replace('.', ' .')
@@ -78,18 +79,10 @@ class SentenceClassificationTestDataset(Dataset):
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def real_len(self):
+    def __len__(self):
         return len(self.dataset)
 
-    def __len__(self):
-        if self.override_length is None:
-            return self.real_len()
-        return self.override_length
-
     def __getitem__(self, idx):
-        if self.override_length is not None:
-            return random.choice(self.dataset)
-
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -239,7 +232,7 @@ def load_multitask_test_data():
     sentiment_data = []
 
     with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+        for record in csv.DictReader(fp, delimiter='\t'):
             sent = record['sentence'].lower().strip()
             sentiment_data.append(sent)
 
@@ -247,8 +240,8 @@ def load_multitask_test_data():
 
     paraphrase_data = []
     with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
-            #if record['split'] != split:
+        for record in csv.DictReader(fp, delimiter='\t'):
+            # if record['split'] != split:
             #    continue
             paraphrase_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
@@ -258,7 +251,7 @@ def load_multitask_test_data():
 
     similarity_data = []
     with open(similarity_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+        for record in csv.DictReader(fp, delimiter='\t'):
             similarity_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
                                     ))
@@ -273,13 +266,13 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     num_labels = {}
     if split == 'test':
         with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
                 sentiment_data.append((sent, sent_id))
     else:
         with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
                 label = int(record['sentiment'].strip())
@@ -292,7 +285,7 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     paraphrase_data = []
     if split == 'test':
         with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 paraphrase_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),
@@ -300,7 +293,7 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
 
     else:
         with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 try:
                     sent_id = record['id'].lower().strip()
                     paraphrase_data.append((preprocess_string(record['sentence1']),
@@ -314,14 +307,14 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     similarity_data = []
     if split == 'test':
         with open(similarity_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2'])
                                         , sent_id))
     else:
         with open(similarity_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),
