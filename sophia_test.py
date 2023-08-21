@@ -45,6 +45,3 @@ print("Actual weights:")
 print(actual)
 assert torch.allclose(ref, actual, atol=1e-6, rtol=1e-4)
 print("Optimizer test passed!")
-
-if __name__ == "__main__":
-    pass
