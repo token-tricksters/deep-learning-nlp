@@ -13,6 +13,12 @@ https://pub.towardsai.net/gpt-4-8-models-in-one-the-secret-is-out-e3d16fd1eee0
 
 🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️🕵️
 """
+def softmax_to_onehot(softmax_output):
+    max_indices = torch.argmax(softmax_output, dim=-1)
+    one_hot = torch.zeros_like(softmax_output)
+    one_hot.scatter_(-1, max_indices.unsqueeze(-1), 1)
+    return one_hot
+
 
 
 class MixtureOfExperts(nn.Module):
@@ -30,6 +36,9 @@ class MixtureOfExperts(nn.Module):
         gating_output = self.gating_network(input_ids, attention_mask)["pooler_output"]
         gating_probs = self.gating_linear_layer(gating_output)
         gate_probs = torch.nn.functional.softmax(gating_probs, dim=1)
+
+        gate_probs = softmax_to_onehot(gate_probs)
+
 
         # Get predictions from each expert
         out_a = self.modela(input_ids, attention_mask)
