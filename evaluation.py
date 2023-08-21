@@ -73,11 +73,11 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate paraphrase detection.
         if paraphrase_dataloader:
             for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels, b_sent_ids = (
                     batch['token_ids_1'], batch['attention_mask_1'], batch['pos_tag_ids_1'], batch['ner_tag_ids_1'],
                     batch['token_ids_2'],
                     batch['attention_mask_2'], batch['pos_tag_ids_2'], batch['ner_tag_ids_2'],
-                    batch['labels'])
+                    batch['labels'], batch['sent_ids'])
 
                 b_ids_1 = b_ids_1.to(device)
                 b_mask_1 = b_mask_1.to(device)
@@ -109,11 +109,11 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate semantic textual similarity.
         if sts_dataloader:
             for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels, b_sent_ids = (
                     batch['token_ids_1'], batch['attention_mask_1'], batch['pos_tag_ids_1'], batch['ner_tag_ids_1'],
                     batch['token_ids_2'],
                     batch['attention_mask_2'], batch['pos_tag_ids_2'], batch['ner_tag_ids_2'],
-                    batch['labels'])
+                    batch['labels'], batch['sent_ids'])
 
                 b_ids_1 = b_ids_1.to(device)
                 b_mask_1 = b_mask_1.to(device)
@@ -145,7 +145,8 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate sentiment classification.
         if sentiment_dataloader:
             for step, batch in enumerate(tqdm(sentiment_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                b_ids, b_mask, b_labels, b_sent_ids, b_pos, b_ner = batch['token_ids'], batch['attention_mask'], batch[
+                b_ids, b_mask, b_labels, b_sent_ids, b_pos, b_ner = batch['token_ids'], batch[
+                    'attention_mask'], batch[
                     'labels'], batch['sent_ids'], batch['pos_tag_ids'], batch['ner_tag_ids']
 
                 b_ids = b_ids.to(device)
