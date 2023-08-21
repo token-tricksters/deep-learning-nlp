@@ -321,6 +321,12 @@ def train_multitask(args):
                     batch["labels"],
                 )
 
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
+                b_labels = b_labels.to(device)
+
                 optimizer.zero_grad()
                 with ctx:
                     logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
@@ -334,7 +340,7 @@ def train_multitask(args):
                     # Update the Hessian EMA
                     optimizer.update_hessian()
                 
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
@@ -359,10 +365,16 @@ def train_multitask(args):
                     batch["labels"],
                 )
 
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
+                b_labels = b_labels.to(device)
+
                 optimizer.zero_grad()
                 with ctx:
                     logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                    b_labels = b_labels.to(torch.float32)
+                    b_labels = b_labels.to(torch.float32) # Compute loss in full precision, even though we autocast
                     para_loss = F.mse_loss(logits, b_labels.view(-1))
                 para_loss.backward()
 
@@ -371,7 +383,7 @@ def train_multitask(args):
                     # Update the Hessian EMA
                     optimizer.update_hessian()
                 
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
@@ -395,6 +407,10 @@ def train_multitask(args):
                     batch["labels"],
                 )
 
+                b_ids = b_ids.to(device)
+                b_mask = b_mask.to(device)
+                b_labels = b_labels.to(device)
+
                 optimizer.zero_grad()
                 with ctx:
                     logits = model.predict_sentiment(b_ids, b_mask)
@@ -407,7 +423,7 @@ def train_multitask(args):
                     # Update the Hessian EMA
                     optimizer.update_hessian()
                 
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
@@ -519,6 +535,7 @@ def get_args():
     # hyper parameters
     parser.add_argument("--batch_size", help="sst: 64 can fit a 12GB GPU", type=int, default=64)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
 
     parser.add_argument("--optimizer", type=str, default="adamw")
 
