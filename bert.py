@@ -151,6 +151,8 @@ class BertModel(BertPreTrainedModel):
         self.pos_tag_vocab = {tag: index + 1 for index, tag in enumerate(pos_tags_spacy)}
         self.ner_tag_vocab = {tag: index + 1 for index, tag in enumerate(ner_tags_spacy)}
 
+        self.input_cache = {}
+
         # embedding
         self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -192,24 +194,30 @@ class BertModel(BertPreTrainedModel):
             all_pos_tags = []
             all_ner_tags = []
             for sequence_id in input_ids:
-                # Convert input_ids to tokens using the BERT tokenizer
-                tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
+                if sequence_id in self.input_cache:
+                    sequence_pos_indices, sequence_ner_indices = self.input_cache[sequence_id]
+                    all_pos_tags.append(sequence_pos_indices)
+                    all_ner_tags.append(sequence_ner_indices)
+                else:
+                    # Convert input_ids to tokens using the BERT tokenizer
+                    tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
 
-                # Convert tokens to strings
-                token_strings = [token if token != '[PAD]' else ' ' for token in tokens]
+                    # Convert tokens to strings
+                    token_strings = [token if token != '[PAD]' else ' ' for token in tokens]
 
-                # Create a Doc object from the list of tokens
-                doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
+                    # Create a Doc object from the list of tokens
+                    doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
 
-                self.nlp.get_pipe("tok2vec")(doc)
-                self.nlp.get_pipe("tagger")(doc)
-                self.nlp.get_pipe("parser")(doc)
-                self.nlp.get_pipe("ner")(doc)
-                sequence_pos_indices = [self.pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
-                sequence_ner_indices = [self.ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
+                    self.nlp.get_pipe("tok2vec")(doc)
+                    self.nlp.get_pipe("tagger")(doc)
+                    self.nlp.get_pipe("parser")(doc)
+                    self.nlp.get_pipe("ner")(doc)
+                    sequence_pos_indices = [self.pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
+                    sequence_ner_indices = [self.ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
 
-                all_pos_tags.append(sequence_pos_indices)
-                all_ner_tags.append(sequence_ner_indices)
+                    self.input_cache[sequence_id] = (sequence_pos_indices, sequence_ner_indices)
+                    all_pos_tags.append(sequence_pos_indices)
+                    all_ner_tags.append(sequence_ner_indices)
 
             pos_tags_ids = torch.tensor(all_pos_tags, dtype=torch.long, device=input_ids.device)
 
