@@ -9,9 +9,12 @@ to train your model.
 
 import csv
 
+import spacy
 import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
+from random import randrange
+import random
 
 
 def preprocess_string(s):
@@ -23,16 +26,69 @@ def preprocess_string(s):
                     .split())
 
 
+def get_pos_ner_tags(additional_input, token_ids, nlp, pos_tag_vocab, ner_tag_vocab, tokenizer):
+    if additional_input:
+        all_pos_tags = []
+        all_ner_tags = []
+        for sequence_id in token_ids:
+            # Convert input_ids to tokens using the BERT tokenizer
+            tokens = tokenizer.convert_ids_to_tokens(sequence_id.tolist())
+
+            # Convert tokens to strings
+            token_strings = [token if token != '[PAD]' else ' ' for token in tokens]
+
+            # Create a Doc object from the list of tokens
+            doc = spacy.tokens.Doc(nlp.vocab, words=token_strings)
+
+            nlp.get_pipe("tok2vec")(doc)
+            nlp.get_pipe("tagger")(doc)
+            nlp.get_pipe("parser")(doc)
+            nlp.get_pipe("ner")(doc)
+            sequence_pos_indices = [pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
+            sequence_ner_indices = [ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
+
+            all_pos_tags.append(sequence_pos_indices)
+            all_ner_tags.append(sequence_ner_indices)
+
+        pos_tags_ids = torch.tensor(all_pos_tags, dtype=torch.long, device=token_ids.device)
+
+        ner_tags_ids = torch.tensor(all_ner_tags, dtype=torch.long, device=token_ids.device)
+    else:
+        pos_tags_ids = torch.zeros(token_ids.shape, dtype=torch.long, device=token_ids.device)
+        ner_tags_ids = torch.zeros(token_ids.shape, dtype=torch.long, device=token_ids.device)
+    return pos_tags_ids, ner_tags_ids
+
+
 class SentenceClassificationDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, override_length=None, additional_input=False):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
+        self.additional_input = additional_input
+
+        spacy.prefer_gpu()
+        self.nlp = spacy.load("en_core_web_sm")
+
+        pos_tags_spacy = self.nlp.get_pipe("tagger").labels
+        ner_tags_spacy = self.nlp.get_pipe("ner").labels
+
+        # Create a vocabulary dictionary for tags
+        self.pos_tag_vocab = {tag: index + 1 for index, tag in enumerate(pos_tags_spacy)}
+        self.ner_tag_vocab = {tag: index + 1 for index, tag in enumerate(ner_tags_spacy)}
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        if self.override_length is None:
+            return self.real_len()
+        return self.override_length
+
     def __getitem__(self, idx):
+        if self.override_length is not None:
+            return random.choice(self.dataset)
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -44,33 +100,58 @@ class SentenceClassificationDataset(Dataset):
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
         labels = torch.LongTensor(labels)
+        pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
+                                                      self.ner_tag_vocab, self.tokenizer)
 
-        return token_ids, attention_mask, labels, sents, sent_ids
+        return token_ids, attention_mask, labels, sents, sent_ids, pos_tags_ids, ner_tags_ids
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, labels, sents, sent_ids = self.pad_data(all_data)
+        token_ids, attention_mask, labels, sents, sent_ids, pos_tags_ids, ner_tags_ids = self.pad_data(all_data)
 
         batched_data = {
             'token_ids': token_ids,
             'attention_mask': attention_mask,
             'labels': labels,
             'sents': sents,
-            'sent_ids': sent_ids
+            'sent_ids': sent_ids,
+            'pos_tag_ids': pos_tags_ids,
+            'ner_tag_ids': ner_tags_ids
         }
 
         return batched_data
 
 
 class SentenceClassificationTestDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, override_length=None, additional_input=False):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
+
+        self.additional_input = additional_input
+
+        spacy.prefer_gpu()
+        self.nlp = spacy.load("en_core_web_sm")
+
+        pos_tags_spacy = self.nlp.get_pipe("tagger").labels
+        ner_tags_spacy = self.nlp.get_pipe("ner").labels
+
+        # Create a vocabulary dictionary for tags
+        self.pos_tag_vocab = {tag: index + 1 for index, tag in enumerate(pos_tags_spacy)}
+        self.ner_tag_vocab = {tag: index + 1 for index, tag in enumerate(ner_tags_spacy)}
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        if self.override_length is None:
+            return self.real_len()
+        return self.override_length
+
     def __getitem__(self, idx):
+        if self.override_length is not None:
+            return random.choice(self.dataset)
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -81,32 +162,58 @@ class SentenceClassificationTestDataset(Dataset):
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
 
-        return token_ids, attention_mask, sents, sent_ids
+        pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
+                                                      self.ner_tag_vocab, self.tokenizer)
+
+        return token_ids, attention_mask, sents, sent_ids, pos_tags_ids, ner_tags_ids
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, sents, sent_ids = self.pad_data(all_data)
+        token_ids, attention_mask, sents, sent_ids, pos_tags_ids, ner_tags_ids = self.pad_data(all_data)
 
         batched_data = {
             'token_ids': token_ids,
             'attention_mask': attention_mask,
             'sents': sents,
-            'sent_ids': sent_ids
+            'sent_ids': sent_ids,
+            'pos_tag_ids': pos_tags_ids,
+            'ner_tag_ids': ner_tags_ids
         }
 
         return batched_data
 
 
 class SentencePairDataset(Dataset):
-    def __init__(self, dataset, args, isRegression=False):
+    def __init__(self, dataset, args, isRegression=False, override_length=None, additional_input=False):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.isRegression = isRegression
+
+        self.additional_input = additional_input
+
+        spacy.prefer_gpu()
+        self.nlp = spacy.load("en_core_web_sm")
+
+        pos_tags_spacy = self.nlp.get_pipe("tagger").labels
+        ner_tags_spacy = self.nlp.get_pipe("ner").labels
+
+        # Create a vocabulary dictionary for tags
+        self.pos_tag_vocab = {tag: index + 1 for index, tag in enumerate(pos_tags_spacy)}
+        self.ner_tag_vocab = {tag: index + 1 for index, tag in enumerate(ner_tags_spacy)}
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        if self.override_length is None:
+            return self.real_len()
+        return self.override_length
+
     def __getitem__(self, idx):
+        if self.override_length is not None:
+            return random.choice(self.dataset)
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -130,14 +237,20 @@ class SentencePairDataset(Dataset):
         else:
             labels = torch.LongTensor(labels)
 
+        pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
+                                                      self.ner_tag_vocab, self.tokenizer)
+
+        pos_tags_ids2, ner_tags_ids2 = get_pos_ner_tags(self.additional_input, token_ids2, self.nlp, self.pos_tag_vocab,
+                                                        self.ner_tag_vocab, self.tokenizer)
+
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
-                labels, sent_ids)
+                labels, sent_ids, pos_tags_ids, ner_tags_ids, pos_tags_ids2, ner_tags_ids2)
 
     def collate_fn(self, all_data):
         (token_ids, token_type_ids, attention_mask,
          token_ids2, token_type_ids2, attention_mask2,
-         labels, sent_ids) = self.pad_data(all_data)
+         labels, sent_ids, pos_tags_ids, ner_tags_ids, pos_tags_ids2, ner_tags_ids2) = self.pad_data(all_data)
 
         batched_data = {
             'token_ids_1': token_ids,
@@ -147,16 +260,31 @@ class SentencePairDataset(Dataset):
             'token_type_ids_2': token_type_ids2,
             'attention_mask_2': attention_mask2,
             'labels': labels,
-            'sent_ids': sent_ids
+            'sent_ids': sent_ids,
+            'pos_tag_ids_1': pos_tags_ids,
+            'ner_tag_ids_1': ner_tags_ids,
+            'pos_tag_ids_2': pos_tags_ids2,
+            'ner_tag_ids_2': ner_tags_ids2
         }
 
         return batched_data
 
 
 class SentencePairTestDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, additional_input=False):
         self.dataset = dataset
         self.p = args
+        self.additional_input = additional_input
+
+        spacy.prefer_gpu()
+        self.nlp = spacy.load("en_core_web_sm")
+
+        pos_tags_spacy = self.nlp.get_pipe("tagger").labels
+        ner_tags_spacy = self.nlp.get_pipe("ner").labels
+
+        # Create a vocabulary dictionary for tags
+        self.pos_tag_vocab = {tag: index + 1 for index, tag in enumerate(pos_tags_spacy)}
+        self.ner_tag_vocab = {tag: index + 1 for index, tag in enumerate(ner_tags_spacy)}
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
     def __len__(self):
@@ -181,14 +309,20 @@ class SentencePairTestDataset(Dataset):
         attention_mask2 = torch.LongTensor(encoding2['attention_mask'])
         token_type_ids2 = torch.LongTensor(encoding2['token_type_ids'])
 
+        pos_tags_ids, ner_tags_ids = get_pos_ner_tags(self.additional_input, token_ids, self.nlp, self.pos_tag_vocab,
+                                                      self.ner_tag_vocab, self.tokenizer)
+
+        pos_tags_ids2, ner_tags_ids2 = get_pos_ner_tags(self.additional_input, token_ids2, self.nlp, self.pos_tag_vocab,
+                                                        self.ner_tag_vocab, self.tokenizer)
+
         return (token_ids, token_type_ids, attention_mask,
                 token_ids2, token_type_ids2, attention_mask2,
-                sent_ids)
+                sent_ids, pos_tags_ids, ner_tags_ids, pos_tags_ids2, ner_tags_ids2)
 
     def collate_fn(self, all_data):
         (token_ids, token_type_ids, attention_mask,
          token_ids2, token_type_ids2, attention_mask2,
-         sent_ids) = self.pad_data(all_data)
+         sent_ids, pos_tags_ids, ner_tags_ids, pos_tags_ids2, ner_tags_ids2) = self.pad_data(all_data)
 
         batched_data = {
             'token_ids_1': token_ids,
@@ -197,7 +331,11 @@ class SentencePairTestDataset(Dataset):
             'token_ids_2': token_ids2,
             'token_type_ids_2': token_type_ids2,
             'attention_mask_2': attention_mask2,
-            'sent_ids': sent_ids
+            'sent_ids': sent_ids,
+            'pos_tag_ids_1': pos_tags_ids,
+            'ner_tag_ids_1': ner_tags_ids,
+            'pos_tag_ids_2': pos_tags_ids2,
+            'ner_tag_ids_2': ner_tags_ids2
         }
 
         return batched_data
@@ -211,7 +349,7 @@ def load_multitask_test_data():
     sentiment_data = []
 
     with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+        for record in csv.DictReader(fp, delimiter='\t'):
             sent = record['sentence'].lower().strip()
             sentiment_data.append(sent)
 
@@ -219,8 +357,8 @@ def load_multitask_test_data():
 
     paraphrase_data = []
     with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
-            #if record['split'] != split:
+        for record in csv.DictReader(fp, delimiter='\t'):
+            # if record['split'] != split:
             #    continue
             paraphrase_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
@@ -230,7 +368,7 @@ def load_multitask_test_data():
 
     similarity_data = []
     with open(similarity_filename, 'r', encoding='utf-8') as fp:
-        for record in csv.DictReader(fp,delimiter = '\t'):
+        for record in csv.DictReader(fp, delimiter='\t'):
             similarity_data.append((preprocess_string(record['sentence1']),
                                     preprocess_string(record['sentence2']),
                                     ))
@@ -245,13 +383,13 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     num_labels = {}
     if split == 'test':
         with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
                 sentiment_data.append((sent, sent_id))
     else:
         with open(sentiment_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent = record['sentence'].lower().strip()
                 sent_id = record['id'].lower().strip()
                 label = int(record['sentiment'].strip())
@@ -264,7 +402,7 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     paraphrase_data = []
     if split == 'test':
         with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 paraphrase_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),
@@ -272,7 +410,7 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
 
     else:
         with open(paraphrase_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 try:
                     sent_id = record['id'].lower().strip()
                     paraphrase_data.append((preprocess_string(record['sentence1']),
@@ -286,14 +424,14 @@ def load_multitask_data(sentiment_filename, paraphrase_filename, similarity_file
     similarity_data = []
     if split == 'test':
         with open(similarity_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2'])
                                         , sent_id))
     else:
         with open(similarity_filename, 'r', encoding='utf-8') as fp:
-            for record in csv.DictReader(fp,delimiter = '\t'):
+            for record in csv.DictReader(fp, delimiter='\t'):
                 sent_id = record['id'].lower().strip()
                 similarity_data.append((preprocess_string(record['sentence1']),
                                         preprocess_string(record['sentence2']),

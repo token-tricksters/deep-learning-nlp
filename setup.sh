@@ -12,3 +12,9 @@ pip install sklearn==0.0
 pip install tokenizers==0.13.2
 pip install explainaboard_client==0.0.7
 pip install tensorboard
+conda install -c conda-forge spacy
+conda install -c conda-forge cupy
+conda install -c conda-forge spacy-transformers
+# packages only available via pip
+pip install spacy-lookups-data
+python -m spacy download en_core_web_sm

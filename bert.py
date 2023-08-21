@@ -1,9 +1,10 @@
-from typing import Dict, List, Optional, Union, Tuple, Callable
 import math
-import torch
-import torch.nn as nn
+
+import spacy
 import torch.nn.functional as F
+
 from base_bert import BertPreTrainedModel
+from tokenizer import BertTokenizer
 from utils import *
 
 
@@ -138,10 +139,14 @@ class BertModel(BertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
+
         # embedding
         self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.tk_type_embedding = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.pos_tag_embedding = nn.Embedding(config.pos_tag_size, config.hidden_size)
+        self.ner_tag_embedding = nn.Embedding(config.ner_tag_size, config.hidden_size)
         self.embed_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.embed_dropout = nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is a constant, register to buffer
@@ -157,7 +162,7 @@ class BertModel(BertPreTrainedModel):
 
         self.init_weights()
 
-    def embed(self, input_ids):
+    def embed(self, input_ids, pos_tags_ids, ner_tags_ids):
         input_shape = input_ids.size()
         seq_length = input_shape[1]
 
@@ -173,8 +178,13 @@ class BertModel(BertPreTrainedModel):
         tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
         tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
-        # Add three embeddings together; then apply embed_layer_norm and dropout and return.
-        return self.embed_dropout(self.embed_layer_norm(inputs_embeds + pos_embeds + tk_type_embeds))
+        pos_tag_embeds = self.pos_tag_embedding(pos_tags_ids)
+
+        ner_tag_embeds = self.ner_tag_embedding(ner_tags_ids)
+
+        # Add five embeddings together; then apply embed_layer_norm and dropout and return.
+        return self.embed_dropout(
+            self.embed_layer_norm(inputs_embeds + pos_embeds + tk_type_embeds + pos_tag_embeds + ner_tag_embeds))
 
     def encode(self, hidden_states, attention_mask):
         """
@@ -193,13 +203,13 @@ class BertModel(BertPreTrainedModel):
 
         return hidden_states
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids, attention_mask, pos_tags_ids, ner_tags_ids):
         """
         input_ids: [batch_size, seq_len], seq_len is the max length of the batch
         attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
         """
         # get the embedding for each input token
-        embedding_output = self.embed(input_ids=input_ids)
+        embedding_output = self.embed(input_ids=input_ids, pos_tags_ids=pos_tags_ids, ner_tags_ids=ner_tags_ids)
 
         # feed to a transformer (a stack of BertLayers)
         sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
