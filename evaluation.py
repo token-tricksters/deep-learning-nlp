@@ -73,18 +73,24 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate paraphrase detection.
         if paraphrase_dataloader:
             for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                (b_ids1, b_mask1,
-                 b_ids2, b_mask2,
-                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                                          batch['token_ids_2'], batch['attention_mask_2'],
-                                          batch['labels'], batch['sent_ids'])
+                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['pos_tag_ids_1'], batch['ner_tag_ids_1'],
+                    batch['token_ids_2'],
+                    batch['attention_mask_2'], batch['pos_tag_ids_2'], batch['ner_tag_ids_2'],
+                    batch['labels'])
 
-                b_ids1 = b_ids1.to(device)
-                b_mask1 = b_mask1.to(device)
-                b_ids2 = b_ids2.to(device)
-                b_mask2 = b_mask2.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
+                b_pos_1 = b_pos_1.to(device)
+                b_ner_1 = b_ner_1.to(device)
 
-                logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
+                b_pos_2 = b_pos_2.to(device)
+                b_ner_2 = b_ner_2.to(device)
+
+                logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2,
+                                                  b_ner_2)
                 y_hat = logits.sigmoid().round().flatten().cpu().numpy()
                 b_labels = b_labels.flatten().cpu().numpy()
 
@@ -103,18 +109,24 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate semantic textual similarity.
         if sts_dataloader:
             for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                (b_ids1, b_mask1,
-                 b_ids2, b_mask2,
-                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                                          batch['token_ids_2'], batch['attention_mask_2'],
-                                          batch['labels'], batch['sent_ids'])
+                b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                    batch['token_ids_1'], batch['attention_mask_1'], batch['pos_tag_ids_1'], batch['ner_tag_ids_1'],
+                    batch['token_ids_2'],
+                    batch['attention_mask_2'], batch['pos_tag_ids_2'], batch['ner_tag_ids_2'],
+                    batch['labels'])
 
-                b_ids1 = b_ids1.to(device)
-                b_mask1 = b_mask1.to(device)
-                b_ids2 = b_ids2.to(device)
-                b_mask2 = b_mask2.to(device)
+                b_ids_1 = b_ids_1.to(device)
+                b_mask_1 = b_mask_1.to(device)
+                b_pos_1 = b_pos_1.to(device)
+                b_ner_1 = b_ner_1.to(device)
 
-                logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
+                b_ids_2 = b_ids_2.to(device)
+                b_mask_2 = b_mask_2.to(device)
+                b_pos_2 = b_pos_2.to(device)
+                b_ner_2 = b_ner_2.to(device)
+
+                logits = model.predict_similarity(b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2,
+                                                  b_ner_2)
                 y_hat = logits.flatten().cpu().numpy()
                 b_labels = b_labels.flatten().cpu().numpy()
 
@@ -133,14 +145,15 @@ def model_eval_multitask(sentiment_dataloader,
         # Evaluate sentiment classification.
         if sentiment_dataloader:
             for step, batch in enumerate(tqdm(sentiment_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                b_ids, b_mask, b_labels, b_sent_ids = batch['token_ids'], batch['attention_mask'], batch['labels'], \
-                batch[
-                    'sent_ids']
+                b_ids, b_mask, b_labels, b_sent_ids, b_pos, b_ner = batch['token_ids'], batch['attention_mask'], batch[
+                    'labels'], batch['sent_ids'], batch['pos_tag_ids'], batch['ner_tag_ids']
 
                 b_ids = b_ids.to(device)
                 b_mask = b_mask.to(device)
+                b_pos = b_pos.to(device)
+                b_ner = b_ner.to(device)
 
-                logits = model.predict_sentiment(b_ids, b_mask)
+                logits = model.predict_sentiment(b_ids, b_mask, b_pos, b_ner)
                 y_hat = logits.argmax(dim=-1).flatten().cpu().numpy()
                 b_labels = b_labels.flatten().cpu().numpy()
 

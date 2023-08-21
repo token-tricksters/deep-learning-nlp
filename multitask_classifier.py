@@ -57,8 +57,6 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        self.use_additional_input = config.additional_input
-
         self.attention_layer = AttentionLayer(config.hidden_size)
 
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
@@ -66,36 +64,36 @@ class MultitaskBERT(nn.Module):
         self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
         self.similarity_linear = nn.Linear(config.hidden_size, config.hidden_size)
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids, attention_mask, pos_tags, ner_tags):
         'Takes a batch of sentences and produces embeddings for them.'
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
 
-        result = self.bert(input_ids, attention_mask, self.use_additional_input)
+        result = self.bert(input_ids, attention_mask, pos_tags, ner_tags)
         attention_result = self.attention_layer(result["last_hidden_state"])
         return attention_result
 
-    def predict_sentiment(self, input_ids, attention_mask):
+    def predict_sentiment(self, input_ids, attention_mask, pos_tag, ner_tag):
         '''Given a batch of sentences, outputs logits for classifying sentiment.
         There are 5 sentiment classes:
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        return self.linear_layer(self.forward(input_ids, attention_mask))
+        return self.linear_layer(self.forward(input_ids, attention_mask, pos_tag, ner_tag))
 
     def predict_paraphrase(self,
-                           input_ids_1, attention_mask_1,
-                           input_ids_2, attention_mask_2):
+                           input_ids_1, attention_mask_1, post_tag_1, ner_tag_1,
+                           input_ids_2, attention_mask_2, post_tag_2, ner_tag_2):
         """
         Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1, post_tag_1, ner_tag_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2, post_tag_2, ner_tag_2)
 
         combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
         combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
@@ -104,16 +102,16 @@ class MultitaskBERT(nn.Module):
         return diff
 
     def predict_similarity(self,
-                           input_ids_1, attention_mask_1,
-                           input_ids_2, attention_mask_2):
+                           input_ids_1, attention_mask_1, pos_tag_1, ner_tag_1,
+                           input_ids_2, attention_mask_2, pos_tag_2, ner_tag_2):
         """
         Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1, pos_tag_1, ner_tag_1)
+        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2, pos_tag_2, ner_tag_2)
 
         combined_bert_embeddings_1 = self.similarity_linear(bert_embeddings_1)
         combined_bert_embeddings_2 = self.similarity_linear(bert_embeddings_2)
@@ -217,7 +215,8 @@ def train_multitask(args):
         total_num_batches += len(para_train_dataloader)
 
     if train_all_datasets or args.sts:
-        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch)
+        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True,
+                                             override_length=args.samples_per_epoch)
         sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
         sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
@@ -229,7 +228,6 @@ def train_multitask(args):
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
               'num_labels': num_labels,
-              'additional_input': args.additional_input,
               'hidden_size': 768,
               'data_dir': '.',
               'option': args.option,
@@ -270,53 +268,68 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
-        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader), total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
-            
+        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+                                   total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
             optimizer.zero_grad()
 
             # Train on STS dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                sts['token_ids_1'], sts['attention_mask_1'], sts['token_ids_2'], sts['attention_mask_2'],
+            b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                sts['token_ids_1'], sts['attention_mask_1'], sts['pos_tag_ids_1'], sts['ner_tag_ids_1'],
+                sts['token_ids_2'],
+                sts['attention_mask_2'], sts['pos_tag_ids_2'], sts['ner_tag_ids_2'],
                 sts['labels'])
 
             b_ids_1 = b_ids_1.to(device)
             b_mask_1 = b_mask_1.to(device)
+            b_pos_1 = b_pos_1.to(device)
+            b_ner_1 = b_ner_1.to(device)
 
             b_ids_2 = b_ids_2.to(device)
             b_mask_2 = b_mask_2.to(device)
+            b_pos_2 = b_pos_2.to(device)
+            b_ner_2 = b_ner_2.to(device)
 
             b_labels = b_labels.to(device)
 
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2)
             b_labels = b_labels.to(torch.float32)
             sts_loss = F.mse_loss(logits, b_labels.view(-1))
 
             # Train on PARAPHRASE dataset
-            b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                para['token_ids_1'], para['attention_mask_1'], para['token_ids_2'], para['attention_mask_2'],
+            b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2, b_labels = (
+                para['token_ids_1'], para['attention_mask_1'], para['pos_tag_ids_1'], para['ner_tag_ids_1'],
+                para['token_ids_2'],
+                para['attention_mask_2'], para['pos_tag_ids_2'], para['ner_tag_ids_2'],
                 para['labels'])
 
             b_ids_1 = b_ids_1.to(device)
             b_mask_1 = b_mask_1.to(device)
+            b_pos_1 = b_pos_1.to(device)
+            b_ner_1 = b_ner_1.to(device)
 
             b_ids_2 = b_ids_2.to(device)
             b_mask_2 = b_mask_2.to(device)
+            b_pos_2 = b_pos_2.to(device)
+            b_ner_2 = b_ner_2.to(device)
 
             b_labels = b_labels.to(device)
 
-            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_pos_1, b_ner_1, b_ids_2, b_mask_2, b_pos_2, b_ner_2)
             b_labels = b_labels.to(torch.float32)
             para_loss = F.mse_loss(logits, b_labels.view(-1))
 
             # Train on SST dataset
-            b_ids, b_mask, b_labels = (sst['token_ids'],
-                                        sst['attention_mask'], sst['labels'])
+            b_ids, b_mask, b_labels, b_pos, b_ner = (sst['token_ids'],
+                                                     sst['attention_mask'], sst['labels'], sst['pos_tag_ids'],
+                                                     sst['ner_tag_ids'])
 
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
             b_labels = b_labels.to(device)
+            b_pos = b_pos.to(device)
+            b_ner = b_ner.to(device)
 
-            logits = model.predict_sentiment(b_ids, b_mask)
+            logits = model.predict_sentiment(b_ids, b_mask, b_pos, b_ner)
             sst_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             full_loss = sts_loss + para_loss + sst_loss
@@ -327,9 +340,8 @@ def train_multitask(args):
 
             optimizer.step()
 
-
-            #print(full_loss.item())
-            #print("DONE")
+            # print(full_loss.item())
+            # print("DONE")
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -403,7 +415,7 @@ def get_args():
     parser.add_argument("--epochs", type=int, default=10)
 
     parser.add_argument("--samples_per_epoch", type=int, default=None)
-    
+
     parser.add_argument("--option", type=str,
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
