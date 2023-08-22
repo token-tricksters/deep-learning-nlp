@@ -1,19 +1,33 @@
-from typing import List, Optional, Tuple, Dict, Union, Any, overload, Sequence, NamedTuple
 import collections
+import copy
+import itertools
+import json
 import os
 import re
 import unicodedata
-import itertools
-import requests
-import copy
-import json
+from collections import OrderedDict
+from collections import UserDict
 from contextlib import contextmanager
-from collections import OrderedDict, UserDict
 from enum import Enum
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import NamedTuple
+from typing import Optional
+from typing import overload
+from typing import Sequence
+from typing import Tuple
+from typing import Union
+
 import numpy as np
-from utils import cached_path, hf_bucket_url, is_remote_url, is_tf_available, is_torch_available
+import requests
 from tokenizers import AddedToken
 from tokenizers import Encoding as EncodingFast
+
+from utils import cached_path
+from utils import hf_bucket_url
+from utils import is_remote_url
+from utils import is_torch_available
 
 
 VERY_LARGE_INTEGER = int(
@@ -93,8 +107,6 @@ def to_py_obj(obj):
         return {k: to_py_obj(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [to_py_obj(o) for o in obj]
-    elif is_tf_available() and _is_tensorflow(obj):
-        return obj.numpy().tolist()
     elif is_torch_available() and _is_torch(obj):
         return obj.detach().cpu().tolist()
     elif isinstance(obj, np.ndarray):
@@ -387,16 +399,7 @@ class BatchEncoding(UserDict):
             tensor_type = TensorType(tensor_type)
 
         # Get a function reference for the correct framework
-        if tensor_type == TensorType.TENSORFLOW:
-            if not is_tf_available():
-                raise ImportError(
-                    "Unable to convert output to TensorFlow tensors format, TensorFlow is not installed."
-                )
-            import tensorflow as tf
-
-            as_tensor = tf.constant
-            is_tensor = tf.is_tensor
-        elif tensor_type == TensorType.PYTORCH:
+        if tensor_type == TensorType.PYTORCH:
             if not is_torch_available():
                 raise ImportError(
                     "Unable to convert output to PyTorch tensors format, PyTorch is not installed."
@@ -405,18 +408,9 @@ class BatchEncoding(UserDict):
 
             as_tensor = torch.tensor
             is_tensor = torch.is_tensor
-        elif tensor_type == TensorType.JAX:
-            if not is_flax_available():
-                raise ImportError(
-                    "Unable to convert output to JAX tensors format, JAX is not installed."
-                )
-            import jax.numpy as jnp  # noqa: F811
-
-            as_tensor = jnp.array
-            is_tensor = _is_jax
         else:
             as_tensor = np.asarray
-            is_tensor = _is_numpy
+            is_tensor = lambda t: isinstance(t, np.ndarray)
         # (mfuntowicz: This code is unreachable)
         # else:
         #     raise ImportError(
@@ -453,7 +447,7 @@ class BatchEncoding(UserDict):
 
         return self
 
-    def to(self, device: Union[str, "torch.device"]) -> "BatchEncoding":
+    def to(self, device) -> "BatchEncoding":
         # This check catches things like APEX blindly calling "to" on all inputs to a module
         # Otherwise it passes the casts down and casts the LongTensor containing the token idxs
         # into a HalfTensor
@@ -1084,7 +1078,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin):
                 tokenizer.add_tokens(token, special_tokens=bool(token in special_tokens))
 
         # Check all our special tokens are registered as "no split" token (we don't cut them) and are in the vocab
-        added_tokens = tokenizer.sanitize_special_tokens()
+        _ = tokenizer.sanitize_special_tokens()
 
         return tokenizer
 
@@ -1649,9 +1643,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin):
                 first_element = required_input[index][0]
         # At this state, if `first_element` is still a list/tuple, it's an empty one so there is nothing to do.
         if not isinstance(first_element, (int, list, tuple)):
-            if is_tf_available() and _is_tensorflow(first_element):
-                return_tensors = "tf" if return_tensors is None else return_tensors
-            elif is_torch_available() and _is_torch(first_element):
+            if is_torch_available() and _is_torch(first_element):
                 return_tensors = "pt" if return_tensors is None else return_tensors
             elif isinstance(first_element, np.ndarray):
                 return_tensors = "np" if return_tensors is None else return_tensors
@@ -1958,7 +1950,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin):
 
     def batch_decode(
         self,
-        sequences: Union[List[int], List[List[int]], "np.ndarray", "torch.Tensor", "tf.Tensor"],
+        sequences,
         skip_special_tokens: bool = False,
         clean_up_tokenization_spaces: bool = True,
         **kwargs,
@@ -1975,7 +1967,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin):
 
     def decode(
         self,
-        token_ids: Union[int, List[int], "np.ndarray", "torch.Tensor", "tf.Tensor"],
+        token_ids,
         skip_special_tokens: bool = False,
         clean_up_tokenization_spaces: bool = True,
         **kwargs,

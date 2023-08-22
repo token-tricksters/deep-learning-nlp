@@ -1,22 +1,35 @@
-from typing import Dict, List, Optional, Union, Tuple, BinaryIO
-import fnmatch
-import socket
-import os
-import sys
-import json
-import tempfile
 import copy
-from tqdm.auto import tqdm
+import fnmatch
+import io
+import json
+import os
+import shutil
+import socket
+import sys
+import tarfile
+import tempfile
+from contextlib import contextmanager
 from functools import partial
-from urllib.parse import urlparse
-from pathlib import Path
-import requests
 from hashlib import sha256
-from filelock import FileLock
+from io import UnsupportedOperation
+from pathlib import Path
+from typing import BinaryIO
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from urllib.parse import urlparse
+from zipfile import is_zipfile
+from zipfile import ZipFile
+
 import importlib_metadata
+import requests
 import torch
 import torch.nn as nn
+from filelock import FileLock
 from torch import Tensor
+from tqdm.auto import tqdm
 
 __version__ = "4.0.0"
 _torch_version = importlib_metadata.version("torch")
@@ -121,8 +134,6 @@ def http_user_agent(user_agent: Union[Dict, str, None] = None) -> str:
     ua = "transformers/{}; python/{}".format(__version__, sys.version.split()[0])
     if is_torch_available():
         ua += f"; torch/{_torch_version}"
-    if is_tf_available():
-        ua += f"; tensorflow/{_tf_version}"
     if isinstance(user_agent, dict):
         ua += "; " + "; ".join("{}/{}".format(k, v) for k, v in user_agent.items())
     elif isinstance(user_agent, str):
@@ -152,12 +163,10 @@ def get_from_cache(
     if isinstance(use_auth_token, str):
         headers["authorization"] = "Bearer {}".format(use_auth_token)
     elif use_auth_token:
-        token = HfFolder.get_token()
-        if token is None:
-            raise EnvironmentError(
-                "You specified use_auth_token=True, but a huggingface token was not found."
-            )
-        headers["authorization"] = "Bearer {}".format(token)
+        raise UnsupportedOperation(
+            "use_auth_token set to True but no valid token specified."
+            " Please pass a string token or disable use_auth_token."
+        )
 
     url_to_download = url
     etag = None
@@ -358,7 +367,7 @@ def cached_path(
     return output_path
 
 
-def get_parameter_dtype(parameter: Union[nn.Module]):
+def get_parameter_dtype(parameter: nn.Module):
     try:
         return next(parameter.parameters()).dtype
     except StopIteration:

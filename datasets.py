@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-
 """
 This module contains our Dataset classes and functions to load the 3 datasets we're using.
 
 You should only need to call load_multitask_data to get the training and dev examples
 to train your model.
 """
-
 import csv
+import random
 
 import torch
 from torch.utils.data import Dataset
+
 from tokenizer import BertTokenizer
-from random import randrange
-import random
 
 
 def preprocess_string(s):
@@ -263,9 +261,9 @@ class SentencePairTestDataset(Dataset):
 
 
 def load_multitask_test_data():
-    paraphrase_filename = f"data/quora-test.csv"
-    sentiment_filename = f"data/ids-sst-test.txt"
-    similarity_filename = f"data/sts-test.csv"
+    paraphrase_filename = "data/quora-test.csv"
+    sentiment_filename = "data/ids-sst-test.txt"
+    similarity_filename = "data/sts-test.csv"
 
     sentiment_data = []
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 Model evaluation functions.
 
@@ -14,21 +13,18 @@ The provided test_model() function in multitask_classifier.py **already does thi
 so unless you change it you shouldn't need to call anything from here
 explicitly aside from model_eval_multitask.
 """
-
-import torch
-from torch.utils.data import DataLoader
-from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
-from tqdm import tqdm
 import numpy as np
+import torch
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from datasets import (
-    load_multitask_data,
-    load_multitask_test_data,
-    SentenceClassificationDataset,
-    SentenceClassificationTestDataset,
-    SentencePairDataset,
-    SentencePairTestDataset,
-)
+from datasets import load_multitask_data
+from datasets import SentenceClassificationDataset
+from datasets import SentenceClassificationTestDataset
+from datasets import SentencePairDataset
+from datasets import SentencePairTestDataset
 
 TQDM_DISABLE = False
 
@@ -40,7 +36,7 @@ def model_eval_sst(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+    for step, batch in enumerate(tqdm(dataloader, desc="eval", disable=TQDM_DISABLE)):
         b_ids, b_mask, b_labels, b_sents, b_sent_ids = (
             batch["token_ids"],
             batch["attention_mask"],
@@ -82,7 +78,7 @@ def model_eval_multitask(
         # Evaluate paraphrase detection.
         if paraphrase_dataloader:
             for step, batch in enumerate(
-                tqdm(paraphrase_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+                tqdm(paraphrase_dataloader, desc="eval", disable=TQDM_DISABLE)
             ):
                 (b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids) = (
                     batch["token_ids_1"],
@@ -116,7 +112,7 @@ def model_eval_multitask(
 
         # Evaluate semantic textual similarity.
         if sts_dataloader:
-            for step, batch in enumerate(tqdm(sts_dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+            for step, batch in enumerate(tqdm(sts_dataloader, desc="eval", disable=TQDM_DISABLE)):
                 (b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids) = (
                     batch["token_ids_1"],
                     batch["attention_mask_1"],
@@ -150,7 +146,7 @@ def model_eval_multitask(
         # Evaluate sentiment classification.
         if sentiment_dataloader:
             for step, batch in enumerate(
-                tqdm(sentiment_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+                tqdm(sentiment_dataloader, desc="eval", disable=TQDM_DISABLE)
             ):
                 b_ids, b_mask, b_labels, b_sent_ids = (
                     batch["token_ids"],
@@ -205,7 +201,7 @@ def model_eval_test_multitask(
         para_sent_ids = []
         # Evaluate paraphrase detection.
         for step, batch in enumerate(
-            tqdm(paraphrase_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+            tqdm(paraphrase_dataloader, desc="eval", disable=TQDM_DISABLE)
         ):
             (b_ids1, b_mask1, b_ids2, b_mask2, b_sent_ids) = (
                 batch["token_ids_1"],
@@ -230,7 +226,7 @@ def model_eval_test_multitask(
         sts_sent_ids = []
 
         # Evaluate semantic textual similarity.
-        for step, batch in enumerate(tqdm(sts_dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+        for step, batch in enumerate(tqdm(sts_dataloader, desc="eval", disable=TQDM_DISABLE)):
             (b_ids1, b_mask1, b_ids2, b_mask2, b_sent_ids) = (
                 batch["token_ids_1"],
                 batch["attention_mask_1"],
@@ -254,9 +250,7 @@ def model_eval_test_multitask(
         sst_sent_ids = []
 
         # Evaluate sentiment classification.
-        for step, batch in enumerate(
-            tqdm(sentiment_dataloader, desc=f"eval", disable=TQDM_DISABLE)
-        ):
+        for step, batch in enumerate(tqdm(sentiment_dataloader, desc="eval", disable=TQDM_DISABLE)):
             b_ids, b_mask, b_sent_ids = (
                 batch["token_ids"],
                 batch["attention_mask"],
@@ -347,33 +341,33 @@ def test_model_multitask(args, model, device):
 
     with open(args.sst_dev_out, "w+") as f:
         print(f"dev sentiment acc :: {dev_sentiment_accuracy :.3f}")
-        f.write(f"id \t Predicted_Sentiment \n")
+        f.write("id \t Predicted_Sentiment \n")
         for p, s in zip(dev_sst_sent_ids, dev_sst_y_pred):
             f.write(f"{p} , {s} \n")
 
     with open(args.sst_test_out, "w+") as f:
-        f.write(f"id \t Predicted_Sentiment \n")
+        f.write("id \t Predicted_Sentiment \n")
         for p, s in zip(test_sst_sent_ids, test_sst_y_pred):
             f.write(f"{p} , {s} \n")
 
     with open(args.para_dev_out, "w+") as f:
         print(f"dev paraphrase acc :: {dev_paraphrase_accuracy :.3f}")
-        f.write(f"id \t Predicted_Is_Paraphrase \n")
+        f.write("id \t Predicted_Is_Paraphrase \n")
         for p, s in zip(dev_para_sent_ids, dev_para_y_pred):
             f.write(f"{p} , {s} \n")
 
     with open(args.para_test_out, "w+") as f:
-        f.write(f"id \t Predicted_Is_Paraphrase \n")
+        f.write("id \t Predicted_Is_Paraphrase \n")
         for p, s in zip(test_para_sent_ids, test_para_y_pred):
             f.write(f"{p} , {s} \n")
 
     with open(args.sts_dev_out, "w+") as f:
         print(f"dev sts corr :: {dev_sts_corr :.3f}")
-        f.write(f"id \t Predicted_Similiary \n")
+        f.write("id \t Predicted_Similiary \n")
         for p, s in zip(dev_sts_sent_ids, dev_sts_y_pred):
             f.write(f"{p} , {s} \n")
 
     with open(args.sts_test_out, "w+") as f:
-        f.write(f"id \t Predicted_Similiary \n")
+        f.write("id \t Predicted_Similiary \n")
         for p, s in zip(test_sts_sent_ids, test_sts_y_pred):
             f.write(f"{p} , {s} \n")

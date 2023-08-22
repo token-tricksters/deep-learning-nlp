@@ -15,4 +15,9 @@ repos:
     -   id: flake8
         #additional_dependencies: [flake8-import-order]
         args: ['--select=F,E9']
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.10.0
+    hooks:
+    -   id: reorder-python-imports
+        args: ['--py38-plus']
 

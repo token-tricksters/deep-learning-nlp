@@ -1,6 +1,10 @@
 import re
-from torch import device, dtype
-from config import BertConfig, PretrainedConfig
+
+from torch import device
+from torch import dtype
+
+from config import BertConfig
+from config import PretrainedConfig
 from utils import *
 
 

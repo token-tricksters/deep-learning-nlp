@@ -1,23 +1,28 @@
-import time, random, numpy as np, argparse, sys, re, os
+import argparse
+import csv
+import random
 from contextlib import nullcontext
 from datetime import datetime
 from types import SimpleNamespace
-import csv
 
+import numpy as np
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
-from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from AttentionLayer import AttentionLayer
+from bert import BertModel
+from optimizer import AdamW
+from optimizer import SophiaG
+from tokenizer import BertTokenizer
 
 # change it with respect to the original model
-from tokenizer import BertTokenizer
-from bert import BertModel
-from optimizer import AdamW, SophiaG
-from tqdm import tqdm
 
 TQDM_DISABLE = False
 

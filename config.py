@@ -1,9 +1,14 @@
-from typing import Union, Tuple, Dict, Any, Optional
-import os
 import json
-from collections import OrderedDict
-import torch
-from utils import CONFIG_NAME, hf_bucket_url, cached_path, is_remote_url
+import os
+from typing import Any
+from typing import Dict
+from typing import Tuple
+from typing import Union
+
+from utils import cached_path
+from utils import CONFIG_NAME
+from utils import hf_bucket_url
+from utils import is_remote_url
 
 
 class PretrainedConfig(object):
@@ -168,7 +173,7 @@ class PretrainedConfig(object):
             # Load config dict
             config_dict = cls._dict_from_json_file(resolved_config_file)
 
-        except EnvironmentError as err:
+        except EnvironmentError:
             msg = (
                 f"Can't load config for '{pretrained_model_name_or_path}'. Make sure that:\n\n"
                 f"- '{pretrained_model_name_or_path}' is a correct model identifier listed on 'https://huggingface.co/models'\n\n"

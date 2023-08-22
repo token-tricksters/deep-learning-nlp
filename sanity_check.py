@@ -1,4 +1,5 @@
 import torch
+
 from bert import BertModel
 
 sanity_data = torch.load("./sanity_check.data")

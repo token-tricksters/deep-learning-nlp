@@ -1,31 +1,30 @@
+import argparse
+import os
+import random
+import subprocess
+import sys
 from contextlib import nullcontext
-import itertools
-from pprint import pformat
-import random, argparse, sys, os, subprocess
 from datetime import datetime
+from pprint import pformat
 from types import SimpleNamespace
 
 import numpy as np
-
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
-from bert import BertModel
-from AttentionLayer import AttentionLayer
-from optimizer import AdamW, SophiaH
 from tqdm import tqdm
 
-from datasets import (
-    SentenceClassificationDataset,
-    SentencePairDataset,
-    load_multitask_data,
-    load_multitask_test_data,
-)
-
-from evaluation import model_eval_sst, test_model_multitask, model_eval_multitask
+from AttentionLayer import AttentionLayer
+from bert import BertModel
+from datasets import load_multitask_data
+from datasets import SentenceClassificationDataset
+from datasets import SentencePairDataset
+from evaluation import model_eval_multitask
+from evaluation import test_model_multitask
+from optimizer import AdamW
+from optimizer import SophiaH
 
 TQDM_DISABLE = False
 
@@ -171,10 +170,6 @@ def load_model(filepath, model, optimizer, use_gpu):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
-    loss_sst_idx_value = 0
-    loss_sts_idx_value = 0
-    loss_para_idx_value = 0
-
     train_all_datasets = True
     n_datasets = args.sst + args.sts + args.para
     if args.sst or args.sts or args.para:

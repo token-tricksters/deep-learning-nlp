@@ -1,8 +1,15 @@
-from typing import Dict, List, Optional, Union, Tuple, Callable
 import math
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from base_bert import BertPreTrainedModel
 from utils import *
 
