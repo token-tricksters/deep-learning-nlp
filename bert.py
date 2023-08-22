@@ -1,11 +1,11 @@
 import math
 
-import spacy
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from base_bert import BertPreTrainedModel
-from tokenizer import BertTokenizer
-from utils import *
+from utils import Tensor, get_extended_attention_mask
 
 
 class BertSelfAttention(nn.Module):
