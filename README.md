@@ -95,10 +95,9 @@ allows for 5 degrees of similarity.
 
 To contribute to the project, please follow the following steps:
 
-Clone the repository to your local machine and install the pre-commit hook.
+Clone the repository to your local machine.
 ````
 git clone git@gitlab.gwdg.de:deep-learning-nlp/token-tricksters.git
-pip install pre-commit && pre-commit install
 ````
 
 Add the upstream repository as a remote and disable pushing to it. This allows you to pull from the upstream repository but not push to it.
