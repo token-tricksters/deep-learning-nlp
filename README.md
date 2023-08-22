@@ -1,6 +1,6 @@
 # DNLP SS23 Final Project - Multitask BERT - Token Tricksters
 
-This repository is the official implementation of the Multitask BERT - Token Tricksters project for the Deep Learning for Natural Language Processing course at the University of Göttingen.
+This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language Processing course at the University of Göttingen by Lars Kaesberg, Niklas Bauer, Constantin Dalinghaus, and Sebastian Kampen.
 
 > 📋 Optional: include a graphic explaining your approach/main result
 
@@ -93,37 +93,38 @@ allows for 5 degrees of similarity.
 
 > 📋 Pick a licence.
 
+To contribute to the project, please follow the following steps:
+
 Clone the repository to your local machine.
 ````
 git clone git@gitlab.gwdg.de:deep-learning-nlp/token-tricksters.git
 ````
 
-Add the task repository as upstream
+Add the upstream repository as a remote and disable pushing to it. This allows you to pull from the upstream repository but not push to it.
 ````
 git remote add upstream https://github.com/truas/minbert-default-final-project
-````
-Disable push to the upstream repository
-````
 git remote set-url --push upstream DISABLE
 ````
-Check that everything is properly configured
-````
-git remote -v
-````
 
-If you want to update using the upstream repository use the following commands
+If you want to pull from the upstream repository you can use the following commands.
 ````
 git fetch upstream
 git merge upstream/main
 ````
 
-### Grete
-To run the multitask-classifier on the `grete` cluster you have to use
+### Grete Cluster
+To run the multitask classifier on the Grete cluster you can use the `run_train.sh` script. You can change the parameters in the script to your liking. To submit the script use
 ````
 sbatch run_train.sh
 ````
 
-If you want to use tensorboard you can forward it to your local machine
+To check on your job you can use the following command
+```
+squeue --me
+```
+The logs of your job will be saved in the `logdir` directory. The best model will be saved in the `models` directory.
+
+To run tensorboard on the Grete cluster you can use the following commands to create a tunnel to your local machine and start tensorboard.
 ````
 ssh -L localhost:16006:localhost:6006 bzkurs42@glogin9.hlrn.de
 module load anaconda3
@@ -131,10 +132,11 @@ source activate dnlp2
 tensorboard --logdir logdir
 ````
 
-If you want to test the multitask-classifier you can create an interactive session with
+If you want to run the model on the Grete cluster interactively you can use the following command, which will give you access to a GPU node with an A100 GPU. This is for testing purposes only and should not be used for training.
 ````
 srun -p grete:shared --pty -G A100:1 --interactive bash
 ````
+
 
 ## Acknowledgement
 
