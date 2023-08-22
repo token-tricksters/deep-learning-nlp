@@ -199,8 +199,10 @@ def train_multitask(args):
     sts_train_dataloader = None
     sts_dev_dataloader = None
     total_num_batches = 0
-    #if train_all_datasets or args.sst:
-    sst_train_data = SentenceClassificationDataset(sst_train_data, args, override_length=args.samples_per_epoch)
+    # if train_all_datasets or args.sst:
+    sst_train_data = SentenceClassificationDataset(
+        sst_train_data, args, override_length=args.samples_per_epoch
+    )
     sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
     sst_train_dataloader = DataLoader(
@@ -217,8 +219,10 @@ def train_multitask(args):
     )
     total_num_batches += len(sst_train_dataloader)
 
-    #if train_all_datasets or args.para:
-    para_train_data = SentencePairDataset(para_train_data, args, override_length=args.samples_per_epoch)
+    # if train_all_datasets or args.para:
+    para_train_data = SentencePairDataset(
+        para_train_data, args, override_length=args.samples_per_epoch
+    )
     para_dev_data = SentencePairDataset(para_dev_data, args)
 
     para_train_dataloader = DataLoader(
@@ -235,9 +239,10 @@ def train_multitask(args):
     )
     total_num_batches += len(para_train_dataloader)
 
-    #if train_all_datasets or args.sts:
-    sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True,
-                                            override_length=args.samples_per_epoch)
+    # if train_all_datasets or args.sts:
+    sts_train_data = SentencePairDataset(
+        sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch
+    )
     sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
     sts_train_dataloader = DataLoader(
@@ -272,7 +277,7 @@ def train_multitask(args):
     print("    Multitask BERT Model Configuration", file=sys.stderr)
     print(separator, file=sys.stderr)
     print(pformat(vars(args)), file=sys.stderr)
-    print("-" * 60, file=sys.stderr) 
+    print("-" * 60, file=sys.stderr)
 
     # Print Git info
     branch = (
@@ -339,17 +344,24 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
-        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-                                   total=args.samples_per_epoch, desc=f"train-{epoch}", disable=TQDM_DISABLE):
-            
+        for sts, para, sst in tqdm(
+            zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+            total=args.samples_per_epoch,
+            desc=f"train-{epoch}",
+            disable=TQDM_DISABLE,
+        ):
             optimizer.zero_grad(set_to_none=True)
             sts_loss, para_loss, sst_loss = 0, 0, 0
 
             # Train on STS dataset
             if train_all_datasets or args.sts:
                 b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    sts['token_ids_1'], sts['attention_mask_1'], sts['token_ids_2'], sts['attention_mask_2'],
-                    sts['labels'])
+                    sts["token_ids_1"],
+                    sts["attention_mask_1"],
+                    sts["token_ids_2"],
+                    sts["attention_mask_2"],
+                    sts["labels"],
+                )
 
                 b_ids_1 = b_ids_1.to(device)
                 b_mask_1 = b_mask_1.to(device)
@@ -367,8 +379,12 @@ def train_multitask(args):
             # Train on PARAPHRASE dataset
             if train_all_datasets or args.para:
                 b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (
-                    para['token_ids_1'], para['attention_mask_1'], para['token_ids_2'], para['attention_mask_2'],
-                    para['labels'])
+                    para["token_ids_1"],
+                    para["attention_mask_1"],
+                    para["token_ids_2"],
+                    para["attention_mask_2"],
+                    para["labels"],
+                )
 
                 b_ids_1 = b_ids_1.to(device)
                 b_mask_1 = b_mask_1.to(device)
@@ -385,8 +401,7 @@ def train_multitask(args):
 
             # Train on SST dataset
             if train_all_datasets or args.sst:
-                b_ids, b_mask, b_labels = (sst['token_ids'],
-                                        sst['attention_mask'], sst['labels'])
+                b_ids, b_mask, b_labels = (sst["token_ids"], sst["attention_mask"], sst["labels"])
 
                 b_ids = b_ids.to(device)
                 b_mask = b_mask.to(device)
@@ -405,7 +420,7 @@ def train_multitask(args):
             if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
                 # Update the Hessian EMA
                 optimizer.update_hessian()
-            
+
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
@@ -420,8 +435,6 @@ def train_multitask(args):
                 scheduler.step(epoch + num_batches / total_num_batches)
 
             writer.add_scalar("Loss/Minibatches", full_loss.item(), num_batches)
-
-
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -505,7 +518,7 @@ def get_args():
     )
 
     parser.add_argument("--samples_per_epoch", type=int, default=30000)
-    parser.add_argument("--use_gpu", action='store_true')
+    parser.add_argument("--use_gpu", action="store_true")
 
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''
+"""
 Model evaluation functions.
 
 When training your multitask model, you will find it useful to run
@@ -13,7 +13,7 @@ which is how the leaderboard will be updated.
 The provided test_model() function in multitask_classifier.py **already does this for you**,
 so unless you change it you shouldn't need to call anything from here
 explicitly aside from model_eval_multitask.
-'''
+"""
 
 import torch
 from torch.utils.data import DataLoader
@@ -21,9 +21,14 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 from tqdm import tqdm
 import numpy as np
 
-from datasets import load_multitask_data, load_multitask_test_data, \
-    SentenceClassificationDataset, SentenceClassificationTestDataset, \
-    SentencePairDataset, SentencePairTestDataset
+from datasets import (
+    load_multitask_data,
+    load_multitask_test_data,
+    SentenceClassificationDataset,
+    SentenceClassificationTestDataset,
+    SentencePairDataset,
+    SentencePairTestDataset,
+)
 
 TQDM_DISABLE = False
 
@@ -35,9 +40,14 @@ def model_eval_sst(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-        b_ids, b_mask, b_labels, b_sents, b_sent_ids = batch['token_ids'], batch['attention_mask'], \
-            batch['labels'], batch['sents'], batch['sent_ids']
+    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+        b_ids, b_mask, b_labels, b_sents, b_sent_ids = (
+            batch["token_ids"],
+            batch["attention_mask"],
+            batch["labels"],
+            batch["sents"],
+            batch["sent_ids"],
+        )
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
@@ -52,17 +62,16 @@ def model_eval_sst(dataloader, model, device):
         sents.extend(b_sents)
         sent_ids.extend(b_sent_ids)
 
-    f1 = f1_score(y_true, y_pred, average='macro')
+    f1 = f1_score(y_true, y_pred, average="macro")
     acc = accuracy_score(y_true, y_pred)
 
     return acc, f1, y_pred, y_true, sents, sent_ids
 
 
 # Perform model evaluation in terms by averaging accuracies across tasks.
-def model_eval_multitask(sentiment_dataloader,
-                         paraphrase_dataloader,
-                         sts_dataloader,
-                         model, device):
+def model_eval_multitask(
+    sentiment_dataloader, paraphrase_dataloader, sts_dataloader, model, device
+):
     model.eval()  # switch to eval model, will turn off randomness like dropout
 
     with torch.no_grad():
@@ -72,12 +81,17 @@ def model_eval_multitask(sentiment_dataloader,
 
         # Evaluate paraphrase detection.
         if paraphrase_dataloader:
-            for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                (b_ids1, b_mask1,
-                 b_ids2, b_mask2,
-                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                                          batch['token_ids_2'], batch['attention_mask_2'],
-                                          batch['labels'], batch['sent_ids'])
+            for step, batch in enumerate(
+                tqdm(paraphrase_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+            ):
+                (b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids) = (
+                    batch["token_ids_1"],
+                    batch["attention_mask_1"],
+                    batch["token_ids_2"],
+                    batch["attention_mask_2"],
+                    batch["labels"],
+                    batch["sent_ids"],
+                )
 
                 b_ids1 = b_ids1.to(device)
                 b_mask1 = b_mask1.to(device)
@@ -102,12 +116,15 @@ def model_eval_multitask(sentiment_dataloader,
 
         # Evaluate semantic textual similarity.
         if sts_dataloader:
-            for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                (b_ids1, b_mask1,
-                 b_ids2, b_mask2,
-                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                                          batch['token_ids_2'], batch['attention_mask_2'],
-                                          batch['labels'], batch['sent_ids'])
+            for step, batch in enumerate(tqdm(sts_dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+                (b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids) = (
+                    batch["token_ids_1"],
+                    batch["attention_mask_1"],
+                    batch["token_ids_2"],
+                    batch["attention_mask_2"],
+                    batch["labels"],
+                    batch["sent_ids"],
+                )
 
                 b_ids1 = b_ids1.to(device)
                 b_mask1 = b_mask1.to(device)
@@ -132,10 +149,15 @@ def model_eval_multitask(sentiment_dataloader,
 
         # Evaluate sentiment classification.
         if sentiment_dataloader:
-            for step, batch in enumerate(tqdm(sentiment_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-                b_ids, b_mask, b_labels, b_sent_ids = batch['token_ids'], batch['attention_mask'], batch['labels'], \
-                batch[
-                    'sent_ids']
+            for step, batch in enumerate(
+                tqdm(sentiment_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+            ):
+                b_ids, b_mask, b_labels, b_sent_ids = (
+                    batch["token_ids"],
+                    batch["attention_mask"],
+                    batch["labels"],
+                    batch["sent_ids"],
+                )
 
                 b_ids = b_ids.to(device)
                 b_mask = b_mask.to(device)
@@ -153,35 +175,45 @@ def model_eval_multitask(sentiment_dataloader,
             sentiment_accuracy = 0
 
         if paraphrase_dataloader:
-            print(f'Paraphrase detection accuracy: {paraphrase_accuracy:.3f}')
+            print(f"Paraphrase detection accuracy: {paraphrase_accuracy:.3f}")
         if sentiment_dataloader:
-            print(f'Sentiment classification accuracy: {sentiment_accuracy:.3f}')
+            print(f"Sentiment classification accuracy: {sentiment_accuracy:.3f}")
         if sts_dataloader:
-            print(f'Semantic Textual Similarity correlation: {sts_corr:.3f}')
+            print(f"Semantic Textual Similarity correlation: {sts_corr:.3f}")
 
-        return (paraphrase_accuracy, para_y_pred, para_sent_ids,
-                sentiment_accuracy, sst_y_pred, sst_sent_ids,
-                sts_corr, sts_y_pred, sts_sent_ids)
+        return (
+            paraphrase_accuracy,
+            para_y_pred,
+            para_sent_ids,
+            sentiment_accuracy,
+            sst_y_pred,
+            sst_sent_ids,
+            sts_corr,
+            sts_y_pred,
+            sts_sent_ids,
+        )
 
 
 # Perform model evaluation in terms by averaging accuracies across tasks.
-def model_eval_test_multitask(sentiment_dataloader,
-                              paraphrase_dataloader,
-                              sts_dataloader,
-                              model, device):
+def model_eval_test_multitask(
+    sentiment_dataloader, paraphrase_dataloader, sts_dataloader, model, device
+):
     model.eval()  # switch to eval model, will turn off randomness like dropout
 
     with torch.no_grad():
-
         para_y_pred = []
         para_sent_ids = []
         # Evaluate paraphrase detection.
-        for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                            batch['token_ids_2'], batch['attention_mask_2'],
-                            batch['sent_ids'])
+        for step, batch in enumerate(
+            tqdm(paraphrase_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+        ):
+            (b_ids1, b_mask1, b_ids2, b_mask2, b_sent_ids) = (
+                batch["token_ids_1"],
+                batch["attention_mask_1"],
+                batch["token_ids_2"],
+                batch["attention_mask_2"],
+                batch["sent_ids"],
+            )
 
             b_ids1 = b_ids1.to(device)
             b_mask1 = b_mask1.to(device)
@@ -198,12 +230,14 @@ def model_eval_test_multitask(sentiment_dataloader,
         sts_sent_ids = []
 
         # Evaluate semantic textual similarity.
-        for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                            batch['token_ids_2'], batch['attention_mask_2'],
-                            batch['sent_ids'])
+        for step, batch in enumerate(tqdm(sts_dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+            (b_ids1, b_mask1, b_ids2, b_mask2, b_sent_ids) = (
+                batch["token_ids_1"],
+                batch["attention_mask_1"],
+                batch["token_ids_2"],
+                batch["attention_mask_2"],
+                batch["sent_ids"],
+            )
 
             b_ids1 = b_ids1.to(device)
             b_mask1 = b_mask1.to(device)
@@ -220,8 +254,14 @@ def model_eval_test_multitask(sentiment_dataloader,
         sst_sent_ids = []
 
         # Evaluate sentiment classification.
-        for step, batch in enumerate(tqdm(sentiment_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-            b_ids, b_mask, b_sent_ids = batch['token_ids'], batch['attention_mask'], batch['sent_ids']
+        for step, batch in enumerate(
+            tqdm(sentiment_dataloader, desc=f"eval", disable=TQDM_DISABLE)
+        ):
+            b_ids, b_mask, b_sent_ids = (
+                batch["token_ids"],
+                batch["attention_mask"],
+                batch["sent_ids"],
+            )
 
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
@@ -232,53 +272,78 @@ def model_eval_test_multitask(sentiment_dataloader,
             sst_y_pred.extend(y_hat)
             sst_sent_ids.extend(b_sent_ids)
 
-        return (para_y_pred, para_sent_ids,
-                sst_y_pred, sst_sent_ids,
-                sts_y_pred, sts_sent_ids)
+        return (para_y_pred, para_sent_ids, sst_y_pred, sst_sent_ids, sts_y_pred, sts_sent_ids)
 
 
 def test_model_multitask(args, model, device):
-    sst_test_data, num_labels, para_test_data, sts_test_data = \
-        load_multitask_data(args.sst_test, args.para_test, args.sts_test, split='test')
+    sst_test_data, num_labels, para_test_data, sts_test_data = load_multitask_data(
+        args.sst_test, args.para_test, args.sts_test, split="test"
+    )
 
-    sst_dev_data, num_labels, para_dev_data, sts_dev_data = \
-        load_multitask_data(args.sst_dev, args.para_dev, args.sts_dev, split='dev')
+    sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(
+        args.sst_dev, args.para_dev, args.sts_dev, split="dev"
+    )
 
     sst_test_data = SentenceClassificationTestDataset(sst_test_data, args)
     sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-    sst_test_dataloader = DataLoader(sst_test_data, shuffle=True, batch_size=args.batch_size,
-                                     collate_fn=sst_test_data.collate_fn)
-    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=sst_dev_data.collate_fn)
+    sst_test_dataloader = DataLoader(
+        sst_test_data, shuffle=True, batch_size=args.batch_size, collate_fn=sst_test_data.collate_fn
+    )
+    sst_dev_dataloader = DataLoader(
+        sst_dev_data, shuffle=False, batch_size=args.batch_size, collate_fn=sst_dev_data.collate_fn
+    )
 
     para_test_data = SentencePairTestDataset(para_test_data, args)
     para_dev_data = SentencePairDataset(para_dev_data, args)
 
-    para_test_dataloader = DataLoader(para_test_data, shuffle=True, batch_size=args.batch_size,
-                                      collate_fn=para_test_data.collate_fn)
-    para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
-                                     collate_fn=para_dev_data.collate_fn)
+    para_test_dataloader = DataLoader(
+        para_test_data,
+        shuffle=True,
+        batch_size=args.batch_size,
+        collate_fn=para_test_data.collate_fn,
+    )
+    para_dev_dataloader = DataLoader(
+        para_dev_data,
+        shuffle=False,
+        batch_size=args.batch_size,
+        collate_fn=para_dev_data.collate_fn,
+    )
 
     sts_test_data = SentencePairTestDataset(sts_test_data, args)
     sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
-    sts_test_dataloader = DataLoader(sts_test_data, shuffle=True, batch_size=args.batch_size,
-                                     collate_fn=sts_test_data.collate_fn)
-    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=sts_dev_data.collate_fn)
+    sts_test_dataloader = DataLoader(
+        sts_test_data, shuffle=True, batch_size=args.batch_size, collate_fn=sts_test_data.collate_fn
+    )
+    sts_dev_dataloader = DataLoader(
+        sts_dev_data, shuffle=False, batch_size=args.batch_size, collate_fn=sts_dev_data.collate_fn
+    )
 
-    dev_paraphrase_accuracy, dev_para_y_pred, dev_para_sent_ids, \
-        dev_sentiment_accuracy, dev_sst_y_pred, dev_sst_sent_ids, dev_sts_corr, \
-        dev_sts_y_pred, dev_sts_sent_ids = model_eval_multitask(sst_dev_dataloader,
-                                                                para_dev_dataloader,
-                                                                sts_dev_dataloader, model, device)
+    (
+        dev_paraphrase_accuracy,
+        dev_para_y_pred,
+        dev_para_sent_ids,
+        dev_sentiment_accuracy,
+        dev_sst_y_pred,
+        dev_sst_sent_ids,
+        dev_sts_corr,
+        dev_sts_y_pred,
+        dev_sts_sent_ids,
+    ) = model_eval_multitask(
+        sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device
+    )
 
-    test_para_y_pred, test_para_sent_ids, test_sst_y_pred, \
-        test_sst_sent_ids, test_sts_y_pred, test_sts_sent_ids = \
-        model_eval_test_multitask(sst_test_dataloader,
-                                  para_test_dataloader,
-                                  sts_test_dataloader, model, device)
+    (
+        test_para_y_pred,
+        test_para_sent_ids,
+        test_sst_y_pred,
+        test_sst_sent_ids,
+        test_sts_y_pred,
+        test_sts_sent_ids,
+    ) = model_eval_test_multitask(
+        sst_test_dataloader, para_test_dataloader, sts_test_dataloader, model, device
+    )
 
     with open(args.sst_dev_out, "w+") as f:
         print(f"dev sentiment acc :: {dev_sentiment_accuracy :.3f}")
