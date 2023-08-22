@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import random
 import subprocess
@@ -341,7 +342,7 @@ def train_multitask(args):
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-            total=args.samples_per_epoch,
+            total=math.ceil(args.samples_per_epoch / args.batch_size),
             desc=f"train-{epoch}",
             disable=TQDM_DISABLE,
         ):
