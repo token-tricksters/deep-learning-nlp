@@ -63,6 +63,11 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = False
             elif config.option == "finetune":
                 param.requires_grad = True
+        if config.unfreeze_interval:
+            for name, param in self.bert.named_parameters():
+                if not name.startswith("bert_layers"):
+                    continue
+                param.requires_grad = False
 
         self.attention_layer = AttentionLayer(config.hidden_size)
 
@@ -262,6 +267,7 @@ def train_multitask(args):
         "data_dir": ".",
         "option": args.option,
         "local_files_only": args.local_files_only,
+        "unfreeze_interval": args.unfreeze_interval,
     }
 
     config = SimpleNamespace(**config)
@@ -338,6 +344,15 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
+        if args.unfreeze_interval:
+            for name, param in model.bert.named_parameters():
+                if not name.startswith("bert_layers"):
+                    continue
+                layer_num = int(name.split(".")[1])
+                unfreeze_up_to = 12 - epoch // args.unfreeze_interval
+                if layer_num >= unfreeze_up_to:
+                    print(layer_num)
+                    param.requires_grad = True
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
@@ -513,6 +528,7 @@ def get_args():
     )
 
     parser.add_argument("--samples_per_epoch", type=int, default=30000)
+    parser.add_argument("--unfreeze_interval", type=int, default=None)
     parser.add_argument("--use_gpu", action="store_true")
 
     parser.add_argument("--sts", action="store_true")
