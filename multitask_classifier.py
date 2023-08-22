@@ -535,7 +535,12 @@ def get_args():
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
 
-    parser.add_argument("--optimizer", type=str, default="adamw")
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        choices=("adamw", "sophiah"),
+        default="adamw",
+    )
 
     args, _ = parser.parse_known_args()
 
