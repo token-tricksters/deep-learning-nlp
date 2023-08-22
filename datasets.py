@@ -12,7 +12,8 @@ import csv
 import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
-
+from random import randrange
+import random
 
 def preprocess_string(s):
     return ' '.join(s.lower()
@@ -24,15 +25,24 @@ def preprocess_string(s):
 
 
 class SentenceClassificationDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, override_length=None):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        if self.override_length is None:
+            return self.real_len()
+        return self.override_length
+
     def __getitem__(self, idx):
+        if self.override_length is not None:
+            return random.choice(self.dataset)
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -67,10 +77,14 @@ class SentenceClassificationTestDataset(Dataset):
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
+    def real_len(self):
+        return len(self.dataset)
+
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
+
         return self.dataset[idx]
 
     def pad_data(self, data):
@@ -97,16 +111,25 @@ class SentenceClassificationTestDataset(Dataset):
 
 
 class SentencePairDataset(Dataset):
-    def __init__(self, dataset, args, isRegression=False):
+    def __init__(self, dataset, args, isRegression=False, override_length=None):
+        self.override_length = override_length
         self.dataset = dataset
         self.p = args
         self.isRegression = isRegression
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=args.local_files_only)
 
-    def __len__(self):
+    def real_len(self):
         return len(self.dataset)
 
+    def __len__(self):
+        if self.override_length is None:
+            return self.real_len()
+        return self.override_length
+
     def __getitem__(self, idx):
+        if self.override_length is not None:
+            return random.choice(self.dataset)
+
         return self.dataset[idx]
 
     def pad_data(self, data):
