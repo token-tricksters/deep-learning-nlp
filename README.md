@@ -6,13 +6,13 @@ This repository is the official implementation of the Multitask BERT project for
 
 ## Requirements
 
-To install requirements:
+To install requirements, using conda, run:
 
 ```sh
-./setup.sh
+source setup.sh
 ```
 
-The script will create a new conda environment called `dnlp2` and install all required packages. The environment can be activated with `conda activate dnlp2`.
+The script will create a new conda environment called `dnlp2` and install all required packages. The environment is activated with `conda activate dnlp2`.
 We use Python 3.10 and PyTorch 2.0+.
 
 ## Training
