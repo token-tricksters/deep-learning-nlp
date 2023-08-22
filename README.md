@@ -112,6 +112,21 @@ git fetch upstream
 git merge upstream/main
 ````
 
+### Pre-Commit Hooks
+The code quality is checked with pre-commit hooks. To install the pre-commit hooks run the following command.
+This is used to ensure that the code quality is consistent and that the code is formatted uniformly.
+````
+pip install pre-commit
+pre-commit install
+````
+This will install the pre-commit hooks in your local repository. The pre-commit hooks will run automatically before each commit. If the hooks fail the commit will be aborted. You can skip the pre-commit hooks by adding the `--no-verify` flag to your commit command.
+
+The installed pre-commit hooks are:
+- [`black`](https://github.com/psf/black) - Code formatter (Line length 100)
+- [`flake8`](https://github.com/PyCQA/flake8) Code linter (Selected rules)
+- [`isort`](https://github.com/PyCQA/isort) - Import sorter
+
+
 ### Grete Cluster
 To run the multitask classifier on the Grete cluster you can use the `run_train.sh` script. You can change the parameters in the script to your liking. To submit the script use
 ````
