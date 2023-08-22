@@ -3,8 +3,10 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import spacy
 
 from base_bert import BertPreTrainedModel
+from tokenizer import BertTokenizer
 from utils import Tensor, get_extended_attention_mask
 
 
@@ -116,13 +118,19 @@ class BertLayer(nn.Module):
         # apply multi-head attention
         multi_head = self.self_attention(hidden_states, attention_mask)
 
-        add_norm_1 = self.add_norm(hidden_states, multi_head, self.attention_dense, self.attention_dropout,
-                                   self.attention_layer_norm)
+        add_norm_1 = self.add_norm(
+            hidden_states,
+            multi_head,
+            self.attention_dense,
+            self.attention_dropout,
+            self.attention_layer_norm,
+        )
 
         feed_forward = self.interm_af(self.interm_dense(add_norm_1))
 
-        add_norm_2 = self.add_norm(add_norm_1, feed_forward, self.out_dense, self.out_dropout,
-                                   self.out_layer_norm)
+        add_norm_2 = self.add_norm(
+            add_norm_1, feed_forward, self.out_dense, self.out_dropout, self.out_layer_norm
+        )
         return add_norm_2
 
 
@@ -139,7 +147,7 @@ class BertModel(BertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', local_files_only=True)
+        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", local_files_only=True)
 
         spacy.prefer_gpu()
         self.nlp = spacy.load("en_core_web_sm")
@@ -154,7 +162,9 @@ class BertModel(BertPreTrainedModel):
         self.input_cache = {}
 
         # embedding
-        self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.word_embedding = nn.Embedding(
+            config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
+        )
         self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.tk_type_embedding = nn.Embedding(config.type_vocab_size, config.hidden_size)
         self.pos_tag_embedding = nn.Embedding(len(pos_tags_spacy) + 1, config.hidden_size)
@@ -163,10 +173,12 @@ class BertModel(BertPreTrainedModel):
         self.embed_dropout = nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is a constant, register to buffer
         position_ids = torch.arange(config.max_position_embeddings).unsqueeze(0)
-        self.register_buffer('position_ids', position_ids)
+        self.register_buffer("position_ids", position_ids)
 
         # bert encoder
-        self.bert_layers = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
+        self.bert_layers = nn.ModuleList(
+            [BertLayer(config) for _ in range(config.num_hidden_layers)]
+        )
 
         # for [CLS] token
         self.pooler_dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -204,7 +216,7 @@ class BertModel(BertPreTrainedModel):
                     tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
 
                     # Convert tokens to strings
-                    token_strings = [token if token != '[PAD]' else ' ' for token in tokens]
+                    token_strings = [token if token != "[PAD]" else " " for token in tokens]
 
                     # Create a Doc object from the list of tokens
                     doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
@@ -233,7 +245,10 @@ class BertModel(BertPreTrainedModel):
 
         # Add five embeddings together; then apply embed_layer_norm and dropout and return.
         return self.embed_dropout(
-            self.embed_layer_norm(inputs_embeds + pos_embeds + tk_type_embeds + pos_tag_embeds + ner_tag_embeds))
+            self.embed_layer_norm(
+                inputs_embeds + pos_embeds + tk_type_embeds + pos_tag_embeds + ner_tag_embeds
+            )
+        )
 
     def encode(self, hidden_states, attention_mask):
         """
@@ -243,7 +258,9 @@ class BertModel(BertPreTrainedModel):
         # get the extended attention mask for self attention
         # returns extended_attention_mask of [batch_size, 1, 1, seq_len]
         # non-padding tokens with 0 and padding tokens with a large negative number
-        extended_attention_mask: torch.Tensor = get_extended_attention_mask(attention_mask, self.dtype)
+        extended_attention_mask: torch.Tensor = get_extended_attention_mask(
+            attention_mask, self.dtype
+        )
 
         # pass the hidden states through the encoder layers
         for i, layer_module in enumerate(self.bert_layers):
@@ -268,4 +285,4 @@ class BertModel(BertPreTrainedModel):
         first_tk = self.pooler_dense(first_tk)
         first_tk = self.pooler_af(first_tk)
 
-        return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
+        return {"last_hidden_state": sequence_output, "pooler_output": first_tk}
