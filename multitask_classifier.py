@@ -66,10 +66,17 @@ class MultitaskBERT(nn.Module):
 
         self.attention_layer = AttentionLayer(config.hidden_size)
 
+        # SENTIMENT
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
-        self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        # SIMILARITY
         self.similarity_linear = nn.Linear(config.hidden_size, config.hidden_size)
+
+        # PARAPHRASE
+        self.paraphrase_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        self.paraphrase_linear1 = torch.nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.paraphrase_linear2 = torch.nn.Linear(config.hidden_size, config.hidden_size)
+        self.paraphrase_linear3 = torch.nn.Linear(config.hidden_size, 2)
 
     def forward(self, input_ids, attention_mask):
         "Takes a batch of sentences and produces embeddings for them."
@@ -92,19 +99,27 @@ class MultitaskBERT(nn.Module):
 
     def predict_paraphrase(self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2):
         """
-        Given a batch of pairs of sentences, outputs a single logit for predicting whether they are paraphrases.
-        Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
-        during evaluation, and handled as a logit by the appropriate loss function.
+        Given a batch of pairs of sentences, outputs logits for predicting whether they are paraphrases.
         """
-
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
         combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
         combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
 
-        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
-        return diff
+        # Calculate absolute difference and sum of combined embeddings
+        abs_diff = torch.abs(combined_bert_embeddings_1 - combined_bert_embeddings_2)
+        abs_sum = torch.abs(combined_bert_embeddings_1 + combined_bert_embeddings_2)
+
+        # Concatenate the absolute difference and sum
+        concatenated_features = torch.cat((abs_diff, abs_sum), dim=1)
+
+        # Apply linear layers to obtain logits for both "yes" and "no" predictions
+        logits = F.relu(self.paraphrase_linear1(concatenated_features))
+        logits = F.relu(self.paraphrase_linear2(logits))
+        logits = self.paraphrase_linear3(logits)
+
+        return logits
 
     def predict_similarity(self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2):
         """
@@ -116,10 +131,7 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        combined_bert_embeddings_1 = self.similarity_linear(bert_embeddings_1)
-        combined_bert_embeddings_2 = self.similarity_linear(bert_embeddings_2)
-
-        diff = torch.cosine_similarity(combined_bert_embeddings_1, combined_bert_embeddings_2)
+        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
         return diff * 5
 
 
@@ -391,8 +403,7 @@ def train_multitask(args):
 
                 with ctx:
                     logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-                    b_labels = b_labels.to(torch.float32)
-                    para_loss = F.mse_loss(logits, b_labels.view(-1))
+                    para_loss = F.cross_entropy(logits, b_labels.view(-1))
 
             # Train on SST dataset
             if train_all_datasets or args.sst:
