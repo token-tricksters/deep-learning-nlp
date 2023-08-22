@@ -215,7 +215,8 @@ def train_multitask(args):
         total_num_batches += len(para_train_dataloader)
 
     if train_all_datasets or args.sts:
-        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch)
+        sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True,
+                                             override_length=args.samples_per_epoch)
         sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
         sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
@@ -267,8 +268,8 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
-        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader), total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
-            
+        for sts, para, sst in tqdm(zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+                                   total=len(sts_train_dataloader), desc=f"train-{epoch}", disable=TQDM_DISABLE):
             optimizer.zero_grad()
 
             # Train on STS dataset
@@ -307,7 +308,7 @@ def train_multitask(args):
 
             # Train on SST dataset
             b_ids, b_mask, b_labels = (sst['token_ids'],
-                                        sst['attention_mask'], sst['labels'])
+                                       sst['attention_mask'], sst['labels'])
 
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
@@ -324,9 +325,8 @@ def train_multitask(args):
 
             optimizer.step()
 
-
-            #print(full_loss.item())
-            #print("DONE")
+            # print(full_loss.item())
+            # print("DONE")
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -399,8 +399,8 @@ def get_args():
     parser.add_argument("--seed", type=int, default=11711)
     parser.add_argument("--epochs", type=int, default=10)
 
-    parser.add_argument("--samples_per_epoch", type=int, default=None)
-    
+    parser.add_argument("--samples_per_epoch", type=int, default=30000)
+
     parser.add_argument("--option", type=str,
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
