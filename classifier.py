@@ -8,18 +8,15 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, f1_score
 from torch import nn
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from AttentionLayer import AttentionLayer
 from bert import BertModel
-from optimizer import AdamW
-from optimizer import SophiaG
+from optimizer import AdamW, SophiaG
 from tokenizer import BertTokenizer
 
 # change it with respect to the original model
@@ -189,7 +186,7 @@ def model_eval(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+    for step, batch in enumerate(tqdm(dataloader, desc="eval", disable=TQDM_DISABLE)):
         b_ids, b_mask, b_labels, b_sents, b_sent_ids = (
             batch["token_ids"],
             batch["attention_mask"],
@@ -222,7 +219,7 @@ def model_test_eval(dataloader, model, device):
     y_pred = []
     sents = []
     sent_ids = []
-    for step, batch in enumerate(tqdm(dataloader, desc=f"eval", disable=TQDM_DISABLE)):
+    for step, batch in enumerate(tqdm(dataloader, desc="eval", disable=TQDM_DISABLE)):
         b_ids, b_mask, b_sents, b_sent_ids = (
             batch["token_ids"],
             batch["attention_mask"],
@@ -424,12 +421,12 @@ def test(args):
         print("DONE Test")
         with open(args.dev_out, "w+") as f:
             print(f"dev acc :: {dev_acc :.3f}")
-            f.write(f"id \t Predicted_Sentiment \n")
+            f.write("id \t Predicted_Sentiment \n")
             for p, s in zip(dev_sent_ids, dev_pred):
                 f.write(f"{p} , {s} \n")
 
         with open(args.test_out, "w+") as f:
-            f.write(f"id \t Predicted_Sentiment \n")
+            f.write("id \t Predicted_Sentiment \n")
             for p, s in zip(test_sent_ids, test_pred):
                 f.write(f"{p} , {s} \n")
 

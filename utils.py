@@ -13,15 +13,9 @@ from functools import partial
 from hashlib import sha256
 from io import UnsupportedOperation
 from pathlib import Path
-from typing import BinaryIO
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
-from zipfile import is_zipfile
-from zipfile import ZipFile
+from zipfile import ZipFile, is_zipfile
 
 import importlib_metadata
 import requests

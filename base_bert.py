@@ -1,11 +1,18 @@
+import os
 import re
+from typing import Optional, Union
 
-from torch import device
-from torch import dtype
+import torch
+from torch import dtype, nn
 
-from config import BertConfig
-from config import PretrainedConfig
-from utils import *
+from config import BertConfig, PretrainedConfig
+from utils import (
+    WEIGHTS_NAME,
+    cached_path,
+    get_parameter_dtype,
+    hf_bucket_url,
+    is_remote_url,
+)
 
 
 class BertPreTrainedModel(nn.Module):
@@ -102,8 +109,7 @@ class BertPreTrainedModel(nn.Module):
                     local_files_only=local_files_only,
                     use_auth_token=use_auth_token,
                 )
-            except EnvironmentError as err:
-                # logger.error(err)
+            except EnvironmentError:
                 msg = (
                     f"Can't load weights for '{pretrained_model_name_or_path}'. Make sure that:\n\n"
                     f"- '{pretrained_model_name_or_path}' is a correct model identifier listed on 'https://huggingface.co/models'\n\n"
@@ -252,11 +258,5 @@ class BertPreTrainedModel(nn.Module):
                 "error_msgs": error_msgs,
             }
             return model, loading_info
-
-        if hasattr(config, "xla_device") and config.xla_device and is_torch_tpu_available():
-            import torch_xla.core.xla_model as xm
-
-            model = xm.send_cpu_data_to_device(model, xm.xla_device())
-            model.to(xm.xla_device())
 
         return model

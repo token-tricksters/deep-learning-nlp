@@ -15,16 +15,17 @@ explicitly aside from model_eval_multitask.
 """
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, f1_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from datasets import load_multitask_data
-from datasets import SentenceClassificationDataset
-from datasets import SentenceClassificationTestDataset
-from datasets import SentencePairDataset
-from datasets import SentencePairTestDataset
+from datasets import (
+    SentenceClassificationDataset,
+    SentenceClassificationTestDataset,
+    SentencePairDataset,
+    SentencePairTestDataset,
+    load_multitask_data,
+)
 
 TQDM_DISABLE = False
 

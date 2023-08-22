@@ -1,14 +1,8 @@
 import json
 import os
-from typing import Any
-from typing import Dict
-from typing import Tuple
-from typing import Union
+from typing import Any, Dict, Tuple, Union
 
-from utils import cached_path
-from utils import CONFIG_NAME
-from utils import hf_bucket_url
-from utils import is_remote_url
+from utils import CONFIG_NAME, cached_path, hf_bucket_url, is_remote_url
 
 
 class PretrainedConfig(object):

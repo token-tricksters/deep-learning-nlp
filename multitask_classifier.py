@@ -18,13 +18,13 @@ from tqdm import tqdm
 
 from AttentionLayer import AttentionLayer
 from bert import BertModel
-from datasets import load_multitask_data
-from datasets import SentenceClassificationDataset
-from datasets import SentencePairDataset
-from evaluation import model_eval_multitask
-from evaluation import test_model_multitask
-from optimizer import AdamW
-from optimizer import SophiaH
+from datasets import (
+    SentenceClassificationDataset,
+    SentencePairDataset,
+    load_multitask_data,
+)
+from evaluation import model_eval_multitask, test_model_multitask
+from optimizer import AdamW, SophiaH
 
 TQDM_DISABLE = False
 

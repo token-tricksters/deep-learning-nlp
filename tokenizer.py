@@ -5,30 +5,27 @@ import json
 import os
 import re
 import unicodedata
-from collections import OrderedDict
-from collections import UserDict
+from collections import OrderedDict, UserDict
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import NamedTuple
-from typing import Optional
-from typing import overload
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    overload,
+)
 
 import numpy as np
 import requests
 from tokenizers import AddedToken
 from tokenizers import Encoding as EncodingFast
 
-from utils import cached_path
-from utils import hf_bucket_url
-from utils import is_remote_url
-from utils import is_torch_available
-
+from utils import cached_path, hf_bucket_url, is_remote_url, is_torch_available
 
 VERY_LARGE_INTEGER = int(
     1e30

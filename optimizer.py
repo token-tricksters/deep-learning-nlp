@@ -1,6 +1,4 @@
-from typing import Callable
-from typing import Iterable
-from typing import Tuple
+from typing import Callable, Iterable, Tuple
 
 import torch
 from torch.optim import Optimizer
