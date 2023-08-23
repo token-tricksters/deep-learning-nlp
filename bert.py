@@ -224,17 +224,14 @@ class BertModel(BertPreTrainedModel):
                     ]
                     input_string = self.tokenizer.convert_tokens_to_string(token_strings)
                     tokenized = self.nlp(input_string)
-                    pos_tags = [0]
-                    ner_tags = [0]
+                    pos_tags = [0] * len(tokens)
+                    ner_tags = [0] * len(tokens)
                     counter = -1
-                    for token in token_strings:
-                        if not token.startswith("##"):
+                    for i in range(len(token_strings)):
+                        if not token_strings[i].startswith("##"):
                             counter += 1
-                        pos_tags.append(self.pos_tag_vocab.get(tokenized[counter].tag_, 0))
-                        ner_tags.append(self.ner_tag_vocab.get(tokenized[counter].ent_type_, 0))
-                    padding = [0] * (len(tokens) - len(pos_tags))
-                    pos_tags += padding
-                    ner_tags += padding
+                        pos_tags[i + 1] = self.pos_tag_vocab.get(tokenized[counter].tag_, 0)
+                        ner_tags[i + 1] = self.ner_tag_vocab.get(tokenized[counter].ent_type_, 0)
 
                     # Cache the input
                     self.input_cache[sequence_id_tup] = (pos_tags, ner_tags)
