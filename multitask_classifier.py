@@ -573,10 +573,7 @@ def get_args():
 if __name__ == "__main__":
     try:
         args = get_args()
-        # TODO Add optimizer after Sophia merge
-        args.filepath = (
-            f"{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt"  # save path
-        )
+        args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
         seed_everything(args.seed)  # fix the seed for reproducibility
         train_multitask(args)
         test_model(args)
