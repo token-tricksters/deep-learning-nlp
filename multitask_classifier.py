@@ -65,6 +65,8 @@ class MultitaskBERT(nn.Module):
             elif config.option == "finetune":
                 param.requires_grad = True
 
+        self.use_additional_input = config.additional_input
+
         self.attention_layer = AttentionLayer(config.hidden_size)
 
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
@@ -79,7 +81,7 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
 
-        result = self.bert(input_ids, attention_mask)
+        result = self.bert(input_ids, attention_mask, self.use_additional_input)
         attention_result = self.attention_layer(result["last_hidden_state"])
         return attention_result
 
@@ -259,6 +261,7 @@ def train_multitask(args):
     config = {
         "hidden_dropout_prob": args.hidden_dropout_prob,
         "num_labels": num_labels,
+        "additional_input": args.additional_input,
         "hidden_size": 768,
         "data_dir": ".",
         "option": args.option,
@@ -515,6 +518,8 @@ def get_args():
 
     parser.add_argument("--samples_per_epoch", type=int, default=30000)
     parser.add_argument("--use_gpu", action="store_true")
+
+    parser.add_argument("--additional_input", action="store_true")
 
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")
