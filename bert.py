@@ -1,9 +1,9 @@
 import math
 
+import spacy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import spacy
 
 from base_bert import BertPreTrainedModel
 from tokenizer import BertTokenizer
@@ -147,11 +147,14 @@ class BertModel(BertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
+        # Initialize the BERT tokenizer
         self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", local_files_only=True)
 
+        # Initialize the spaCy model
         spacy.prefer_gpu()
         self.nlp = spacy.load("en_core_web_sm")
 
+        # Get the POS and NER tags from spaCy
         pos_tags_spacy = self.nlp.get_pipe("tagger").labels
         ner_tags_spacy = self.nlp.get_pipe("ner").labels
 
@@ -161,7 +164,7 @@ class BertModel(BertPreTrainedModel):
 
         self.input_cache = {}
 
-        # embedding
+        # embeddings
         self.word_embedding = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
         )
@@ -169,6 +172,7 @@ class BertModel(BertPreTrainedModel):
         self.tk_type_embedding = nn.Embedding(config.type_vocab_size, config.hidden_size)
         self.pos_tag_embedding = nn.Embedding(len(pos_tags_spacy) + 1, config.hidden_size)
         self.ner_tag_embedding = nn.Embedding(len(ner_tags_spacy) + 1, config.hidden_size)
+
         self.embed_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.embed_dropout = nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is a constant, register to buffer
@@ -195,22 +199,21 @@ class BertModel(BertPreTrainedModel):
 
         # Get position index and position embedding from self.pos_embedding into pos_embeds.
         pos_ids = self.position_ids[:, :seq_length]
-
         pos_embeds = self.pos_embedding(pos_ids)
 
-        # Get token type ids, since we are not consider token type, just a placeholder.
+        # Get token type ids, since we are not considering token type, just a placeholder.
         tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
         tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
         if additional_input:
+            # Get POS tags and NER tags from self.pos_tag_embedding and self.ner_tag_embedding into pos_tag_embeds and ner_tag_embeds.
+
             all_pos_tags = []
             all_ner_tags = []
             for sequence_id in input_ids:
                 sequence_id_tup = tuple(sequence_id.tolist())
                 if sequence_id_tup in self.input_cache:
                     sequence_pos_indices, sequence_ner_indices = self.input_cache[sequence_id_tup]
-                    all_pos_tags.append(sequence_pos_indices)
-                    all_ner_tags.append(sequence_ner_indices)
                 else:
                     # Convert input_ids to tokens using the BERT tokenizer
                     tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
@@ -221,26 +224,25 @@ class BertModel(BertPreTrainedModel):
                     # Create a Doc object from the list of tokens
                     doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
 
-                    self.nlp.get_pipe("tok2vec")(doc)
-                    self.nlp.get_pipe("tagger")(doc)
-                    self.nlp.get_pipe("parser")(doc)
-                    self.nlp.get_pipe("ner")(doc)
+                    # Create a Doc object from the list of tokens and process through the entire pipeline
+                    doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
+                    self.nlp(doc)
                     sequence_pos_indices = [self.pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
                     sequence_ner_indices = [self.ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
 
+                    # Cache the input
                     self.input_cache[sequence_id_tup] = (sequence_pos_indices, sequence_ner_indices)
-                    all_pos_tags.append(sequence_pos_indices)
-                    all_ner_tags.append(sequence_ner_indices)
+
+                all_pos_tags.append(sequence_pos_indices)
+                all_ner_tags.append(sequence_ner_indices)
 
             pos_tags_ids = torch.tensor(all_pos_tags, dtype=torch.long, device=input_ids.device)
-
             ner_tags_ids = torch.tensor(all_ner_tags, dtype=torch.long, device=input_ids.device)
         else:
             pos_tags_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
             ner_tags_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
 
         pos_tag_embeds = self.pos_tag_embedding(pos_tags_ids)
-
         ner_tag_embeds = self.ner_tag_embedding(ner_tags_ids)
 
         # Add five embeddings together; then apply embed_layer_norm and dropout and return.
