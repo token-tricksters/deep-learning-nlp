@@ -133,7 +133,7 @@ class MultitaskBERT(nn.Module):
 
     def predict_paraphrase(self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2):
         logits = self.predict_paraphrase_train(
-            self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
+            input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
         )
         return logits.argmax(dim=-1)
 
