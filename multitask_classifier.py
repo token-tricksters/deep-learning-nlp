@@ -338,7 +338,12 @@ def train_multitask(args):
         model, optimizer, _, config = load_model(args.checkpoint, model, optimizer, args.use_gpu)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
-    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
+    writer = SummaryWriter(
+        log_dir=args.logdir
+        + "/multitask_classifier/"
+        + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+        + name
+    )
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -561,6 +566,7 @@ def get_args():
         default=1e-5 if args.option == "finetune" else 1e-3,
     )
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--tensorboard_subfolder", type=str, default=None)
     parser.add_argument("--local_files_only", action="store_true")
     parser.add_argument(
         "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "none")
