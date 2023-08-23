@@ -275,7 +275,10 @@ def train_multitask(args):
     print(separator, file=sys.stderr)
     print("    Multitask BERT Model Configuration", file=sys.stderr)
     print(separator, file=sys.stderr)
-    print(pformat(vars(args)), file=sys.stderr)
+    filtered_vars = {
+        k: v for k, v in vars(args).items() if "csv" not in str(v)
+    }  # Filter out csv files
+    print(pformat(filtered_vars), file=sys.stderr)
     print("-" * 60, file=sys.stderr)
 
     # Print Git info
@@ -568,11 +571,14 @@ def get_args():
 
 
 if __name__ == "__main__":
-    args = get_args()
-    # TODO Add optimizer after Sophia merge
-    args.filepath = (
-        f"{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt"  # save path
-    )
-    seed_everything(args.seed)  # fix the seed for reproducibility
-    train_multitask(args)
-    test_model(args)
+    try:
+        args = get_args()
+        # TODO Add optimizer after Sophia merge
+        args.filepath = (
+            f"{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt"  # save path
+        )
+        seed_everything(args.seed)  # fix the seed for reproducibility
+        train_multitask(args)
+        test_model(args)
+    except KeyboardInterrupt:
+        print("Received KeyboardInterrupt...")
