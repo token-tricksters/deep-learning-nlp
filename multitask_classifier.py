@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import random
 import subprocess
@@ -69,6 +70,8 @@ class MultitaskBERT(nn.Module):
                     continue
                 param.requires_grad = False
 
+        self.use_additional_input = config.additional_input
+
         self.attention_layer = AttentionLayer(config.hidden_size)
 
         self.linear_layer = nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
@@ -83,7 +86,7 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
 
-        result = self.bert(input_ids, attention_mask)
+        result = self.bert(input_ids, attention_mask, self.use_additional_input)
         attention_result = self.attention_layer(result["last_hidden_state"])
         return attention_result
 
@@ -263,6 +266,7 @@ def train_multitask(args):
     config = {
         "hidden_dropout_prob": args.hidden_dropout_prob,
         "num_labels": num_labels,
+        "additional_input": args.additional_input,
         "hidden_size": 768,
         "data_dir": ".",
         "option": args.option,
@@ -277,7 +281,10 @@ def train_multitask(args):
     print(separator, file=sys.stderr)
     print("    Multitask BERT Model Configuration", file=sys.stderr)
     print(separator, file=sys.stderr)
-    print(pformat(vars(args)), file=sys.stderr)
+    filtered_vars = {
+        k: v for k, v in vars(args).items() if "csv" not in str(v)
+    }  # Filter out csv files
+    print(pformat(filtered_vars), file=sys.stderr)
     print("-" * 60, file=sys.stderr)
 
     # Print Git info
@@ -337,7 +344,12 @@ def train_multitask(args):
         model, optimizer, _, config = load_model(args.checkpoint, model, optimizer, args.use_gpu)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
-    writer = SummaryWriter(log_dir=args.logdir + "/multitask_classifier/" + name)
+    writer = SummaryWriter(
+        log_dir=args.logdir
+        + "/multitask_classifier/"
+        + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+        + name
+    )
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -356,7 +368,7 @@ def train_multitask(args):
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-            total=args.samples_per_epoch,
+            total=math.ceil(args.samples_per_epoch / args.batch_size),
             desc=f"train-{epoch}",
             disable=TQDM_DISABLE,
         ):
@@ -531,6 +543,8 @@ def get_args():
     parser.add_argument("--unfreeze_interval", type=int, default=None)
     parser.add_argument("--use_gpu", action="store_true")
 
+    parser.add_argument("--additional_input", action="store_true")
+
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")
     parser.add_argument("--para", action="store_true")
@@ -568,6 +582,7 @@ def get_args():
         default=1e-5 if args.option == "finetune" else 1e-3,
     )
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--tensorboard_subfolder", type=str, default=None)
     parser.add_argument("--local_files_only", action="store_true")
     parser.add_argument(
         "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "none")
@@ -578,11 +593,11 @@ def get_args():
 
 
 if __name__ == "__main__":
-    args = get_args()
-    # TODO Add optimizer after Sophia merge
-    args.filepath = (
-        f"{args.option}-{args.epochs}-{args.lr}-{args.scheduler}-multitask.pt"  # save path
-    )
-    seed_everything(args.seed)  # fix the seed for reproducibility
-    train_multitask(args)
-    test_model(args)
+    try:
+        args = get_args()
+        args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
+        seed_everything(args.seed)  # fix the seed for reproducibility
+        train_multitask(args)
+        test_model(args)
+    except KeyboardInterrupt:
+        print("Received KeyboardInterrupt...")
