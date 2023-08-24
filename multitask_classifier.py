@@ -65,6 +65,15 @@ class MultitaskBERT(nn.Module):
             elif config.option == "finetune":
                 param.requires_grad = True
 
+        if config.unfreeze_interval:
+            if config.option == "pretrain":
+                for name, param in self.bert.named_parameters():
+                    if not name.startswith("bert_layers"):
+                        continue
+                    param.requires_grad = False
+            else:
+                print("Unfreeze used in finetune mode, ignoring")
+
         self.use_additional_input = config.additional_input
 
         self.attention_layer = AttentionLayer(config.hidden_size)
@@ -266,6 +275,7 @@ def train_multitask(args):
         "data_dir": ".",
         "option": args.option,
         "local_files_only": args.local_files_only,
+        "unfreeze_interval": args.unfreeze_interval,
     }
 
     config = SimpleNamespace(**config)
@@ -350,6 +360,22 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
+        num_layers = model.bert.config.num_hidden_layers
+
+        # Unfreeze the layers
+        unfreezed = set()
+        if args.unfreeze_interval and args.option == "pretrain":
+            for name, param in model.bert.named_parameters():
+                if not name.startswith("bert_layers"):
+                    continue
+                layer_num = int(name.split(".")[1])
+                unfreeze_up_to = num_layers - epoch // args.unfreeze_interval
+                if layer_num >= unfreeze_up_to:
+                    unfreezed.add(layer_num)
+                    param.requires_grad = True  # Unfreeze the layer
+
+        if len(unfreezed) > 0:
+            print(f"Unfreezed BERT layers: {unfreezed}", file=sys.stderr)
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
@@ -525,6 +551,7 @@ def get_args():
     )
 
     parser.add_argument("--samples_per_epoch", type=int, default=30000)
+    parser.add_argument("--unfreeze_interval", type=int, default=None)
     parser.add_argument("--use_gpu", action="store_true")
 
     parser.add_argument("--additional_input", action="store_true")
