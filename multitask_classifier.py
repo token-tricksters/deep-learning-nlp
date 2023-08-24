@@ -606,7 +606,7 @@ def get_args():
         choices=("adamw", "sophiah"),
         default="adamw",
     )
-    parse.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument("--weight_decay", type=float, default=0.01)
 
     args, _ = parser.parse_known_args()
 
