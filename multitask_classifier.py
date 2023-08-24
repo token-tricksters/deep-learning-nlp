@@ -352,7 +352,7 @@ def train_multitask(args):
     elif args.optimizer == "sophiah":
         # TODO: Tune this further, https://github.com/Liuhong99/Sophia#hyper-parameter-tuning
         optimizer = SophiaH(
-            model.parameters(), lr=lr, eps=1e-12, rho=0.05, betas=(0.985, 0.99), weight_decay=2e-1
+            model.parameters(), lr=lr, eps=1e-12, rho=0.05, betas=(0.985, 0.99), weight_decay=args.weight_decay
         )
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
