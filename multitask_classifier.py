@@ -348,7 +348,7 @@ def train_multitask(args):
     )
 
     if args.optimizer == "adamw":
-        optimizer = AdamW(model.parameters(), lr=lr)
+        optimizer = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
     elif args.optimizer == "sophiah":
         # TODO: Tune this further, https://github.com/Liuhong99/Sophia#hyper-parameter-tuning
         optimizer = SophiaH(
@@ -606,6 +606,7 @@ def get_args():
         choices=("adamw", "sophiah"),
         default="adamw",
     )
+    parse.add_argument("--weight_decay", type=float, default=0.01)
 
     args, _ = parser.parse_known_args()
 
