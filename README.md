@@ -29,15 +29,16 @@ python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 64
 There are a lot of parameters that can be set. To see all of them, run `python multitask_classifier.py --help`. The most
 important ones are:
 
-| Parameter            | Description                                                    |
-|----------------------|----------------------------------------------------------------|
-| `--use_gpu`          | Whether to use the GPU.                                        |
-| `--lr`               | Learning rate.                                                 |
-| `--batch_size`       | Batch size.                                                    |
-| `--epochs`           | Number of epochs.                                              |
-| `--optimizer`        | Optimizer to use. Options are `AdamW` and `SophiaW`.           |
-| `--scheduler`        | Learning rate scheduler to use.                                |
-| `--additional_input` | Activates the usage for POS and NER tags for the input of BERT |
+| Parameter             | Description                                                    |
+|-----------------------|----------------------------------------------------------------|
+| `--use_gpu`           | Whether to use the GPU.                                        |
+| `--lr`                | Learning rate.                                                 |
+| `--batch_size`        | Batch size.                                                    |
+| `--epochs`            | Number of epochs.                                              |
+| `--optimizer`         | Optimizer to use. Options are `AdamW` and `SophiaW`.           |
+| `--scheduler`         | Learning rate scheduler to use.                                |
+| `--unfreeze_interval` | Number of epochs until the next BERT layer is unfrozen         |
+| `--additional_input`  | Activates the usage for POS and NER tags for the input of BERT |
 
 > 📋 Describe how to train the models, with example commands on how to train the models in your paper, including the full
 > training procedure and appropriate hyperparameters.
