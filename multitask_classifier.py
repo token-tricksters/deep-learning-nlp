@@ -479,15 +479,15 @@ def train_multitask(args):
         para_dev_acc, _, _, sst_dev_acc, _, _, sts_dev_acc, _, _ = model_eval_multitask(
             sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device
         )
-        if args.para:
-            writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
-            writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-        if args.sst:
-            writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
-            writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-        if args.sts:
-            writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
-            writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
+
+        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+
+        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+
+        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if (
             para_dev_acc > best_dev_acc_para
