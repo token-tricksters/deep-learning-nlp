@@ -440,9 +440,14 @@ def train_multitask(args):
                 b_mask = b_mask.to(device)
                 b_labels = b_labels.to(device)
 
+                # Class weights
+                class_weights = torch.tensor([0.12780898876404495, 0.25959737827715357, 0.1900749063670412, 0.2717696629213483, 0.150749063670412]).to(device)
+                class_weights = 1. / class_weights
+
+
                 with ctx:
                     logits = model.predict_sentiment(b_ids, b_mask)
-                    sst_loss = F.cross_entropy(logits, b_labels.view(-1))
+                    sst_loss = F.cross_entropy(logits, b_labels.view(-1), weight=class_weights)
 
             # Combined Loss
             # Can also weight the losses
