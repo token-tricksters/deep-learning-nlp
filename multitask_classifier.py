@@ -64,11 +64,15 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = False
             elif config.option == "finetune":
                 param.requires_grad = True
+
         if config.unfreeze_interval:
-            for name, param in self.bert.named_parameters():
-                if not name.startswith("bert_layers"):
-                    continue
-                param.requires_grad = False
+            if config.option == "pretrain":
+                for name, param in self.bert.named_parameters():
+                    if not name.startswith("bert_layers"):
+                        continue
+                    param.requires_grad = False
+            else:
+                print("Unfreeze used in finetune mode, ignoring")
 
         self.use_additional_input = config.additional_input
 
@@ -356,15 +360,22 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        if args.unfreeze_interval:
+        num_layers = model.bert.config.num_hidden_layers
+
+        # Unfreeze the layers
+        unfreezed = set()
+        if args.unfreeze_interval and args.option == "pretrain":
             for name, param in model.bert.named_parameters():
                 if not name.startswith("bert_layers"):
                     continue
                 layer_num = int(name.split(".")[1])
-                unfreeze_up_to = 12 - epoch // args.unfreeze_interval
+                unfreeze_up_to = num_layers - epoch // args.unfreeze_interval
                 if layer_num >= unfreeze_up_to:
-                    print(layer_num)
-                    param.requires_grad = True
+                    unfreezed.add(layer_num)
+                    param.requires_grad = True  # Unfreeze the layer
+
+        if len(unfreezed) > 0:
+            print(f"Unfreezed BERT layers: {unfreezed}", file=sys.stderr)
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
