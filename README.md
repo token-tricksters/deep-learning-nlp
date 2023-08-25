@@ -107,21 +107,21 @@ To contribute to the project, please follow the following steps:
 
 Clone the repository to your local machine.
 
-````
+````sh
 git clone git@gitlab.gwdg.de:deep-learning-nlp/token-tricksters.git
 ````
 
 Add the upstream repository as a remote and disable pushing to it. This allows you to pull from the upstream repository
 but not push to it.
 
-````
+````sh
 git remote add upstream https://github.com/truas/minbert-default-final-project
 git remote set-url --push upstream DISABLE
 ````
 
 If you want to pull from the upstream repository you can use the following commands.
 
-````
+````sh
 git fetch upstream
 git merge upstream/main
 ````
@@ -131,7 +131,7 @@ git merge upstream/main
 The code quality is checked with pre-commit hooks. To install the pre-commit hooks run the following command.
 This is used to ensure that the code quality is consistent and that the code is formatted uniformly.
 
-````
+````sh
 pip install pre-commit
 pre-commit install
 ````
@@ -151,13 +151,13 @@ The installed pre-commit hooks are:
 To run the multitask classifier on the Grete cluster you can use the `run_train.sh` script. You can change the
 parameters in the script to your liking. To submit the script use
 
-````
+````sh
 sbatch run_train.sh
 ````
 
 To check on your job you can use the following command
 
-```
+```sh
 squeue --me
 ```
 
@@ -166,7 +166,7 @@ The logs of your job will be saved in the `logdir` directory. The best model wil
 To run tensorboard on the Grete cluster you can use the following commands to create a tunnel to your local machine and
 start tensorboard.
 
-````
+````sh
 ssh -L localhost:16006:localhost:6006 bzkurs42@glogin9.hlrn.de
 module load anaconda3
 source activate dnlp2
@@ -176,7 +176,7 @@ tensorboard --logdir logdir
 If you want to run the model on the Grete cluster interactively you can use the following command, which will give you
 access to a GPU node with an A100 GPU. This is for testing purposes only and should not be used for training.
 
-````
+````sh
 srun -p grete:shared --pty -G A100:1 --interactive bash
 ````
 
