@@ -307,14 +307,14 @@ def train_multitask(args):
 
     # Print model configuration
     separator = "=" * 60
-    print(separator, file=sys.stderr)
-    print("    Multitask BERT Model Configuration", file=sys.stderr)
-    print(separator, file=sys.stderr)
+    print(separator)
+    print("    Multitask BERT Model Configuration")
+    print(separator)
     filtered_vars = {
         k: v for k, v in vars(args).items() if "csv" not in str(v)
     }  # Filter out csv files
-    print(pformat(filtered_vars), file=sys.stderr)
-    print("-" * 60, file=sys.stderr)
+    print(pformat(filtered_vars))
+    print("-" * 60)
 
     # Print Git info
     branch = (
@@ -330,17 +330,17 @@ def train_multitask(args):
     )
 
     # Print Git info
-    print(f"Git Branch: {branch}", file=sys.stderr)
-    print(f"Git Hash: {commit} {is_modified}", file=sys.stderr)
-    print("-" * 60, file=sys.stderr)  # Adjust as needed
-    print(f"Command: {' '.join(sys.argv)}", file=sys.stderr)
-    print(separator, file=sys.stderr)
+    print(f"Git Branch: {branch}")
+    print(f"Git Hash: {commit} {is_modified}")
+    print("-" * 60)  # Adjust as needed
+    print(f"Command: {' '.join(sys.argv)}")
+    print(separator)
 
     model = MultitaskBERT(config)
     model = model.to(device)
 
     lr = args.lr
-    hess_interval = 10
+    hess_interval = args.hess_interval
     ctx = (
         nullcontext()
         if not args.use_gpu
@@ -613,6 +613,9 @@ def get_args():
     )
     parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
     parser.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument(
+        "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
+    )
 
     args, _ = parser.parse_known_args()
 
