@@ -357,11 +357,6 @@ def train_multitask(args):
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
-    # Experimental: Extra optimizers
-    optimizer_a = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
-    optimizer_b = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
-    optimizer_c = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
-
     if args.scheduler == "plateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
     elif args.scheduler == "cosine":
