@@ -478,13 +478,14 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward()
+            full_loss.backward(create_graph=True)
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             # Update the parameters
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
 
             train_loss += full_loss.item()
             num_batches += 1
