@@ -352,7 +352,12 @@ def train_multitask(args):
     elif args.optimizer == "sophiah":
         # TODO: Tune this further, https://github.com/Liuhong99/Sophia#hyper-parameter-tuning
         optimizer = SophiaH(
-            model.parameters(), lr=lr, eps=1e-12, rho=0.05, betas=(0.985, 0.99), weight_decay=args.weight_decay
+            model.parameters(),
+            lr=lr,
+            eps=1e-12,
+            rho=args.rho,
+            betas=(0.985, 0.99),
+            weight_decay=args.weight_decay,
         )
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
@@ -606,6 +611,7 @@ def get_args():
         choices=("adamw", "sophiah"),
         default="adamw",
     )
+    parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
     parser.add_argument("--weight_decay", type=float, default=0.01)
 
     args, _ = parser.parse_known_args()
@@ -615,7 +621,9 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=1e-5 if args.option == "finetune" else 1e-3,
+        default=1e-5 * (1 / args.rho if args.optimizer == "sophiah" else 1)
+        if args.option == "finetune"
+        else 1e-3 * (1 / args.rho if args.optimizer == "sophiah" else 1),
     )
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--tensorboard_subfolder", type=str, default=None)
@@ -625,6 +633,7 @@ def get_args():
     )
 
     args = parser.parse_args()
+
     return args
 
 
