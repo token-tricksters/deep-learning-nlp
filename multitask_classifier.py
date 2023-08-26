@@ -502,7 +502,9 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward(create_graph=True if args.optimizer == "sophiah" else False)
+            full_loss.backward(
+                create_graph=True if args.optimizer == "sophiah" else False, retain_graph=True
+            )
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -512,11 +514,11 @@ def train_multitask(args):
             optimizer.zero_grad(set_to_none=True)
 
             optimizer_sts.zero_grad()
-            sts_loss.backward()
+            sts_loss.backward(retain_graph=True)
             optimizer_sts.step()
 
             optimizer_para.zero_grad()
-            para_loss.backward()
+            para_loss.backward(retain_graph=True)
             optimizer_para.step()
 
             optimizer_sst.zero_grad()

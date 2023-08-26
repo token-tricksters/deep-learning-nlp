@@ -30,4 +30,4 @@ nvcc -V
 git branch
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --batch_size 8 --option finetune --samples_per_epoch 10000 --scheduler cosine --epochs 50 --weight_decay 0.1  --tensorboard_subfolder optimizer
+python -u multitask_classifier.py --use_gpu --batch_size 32 --option finetune --samples_per_epoch 10000 --scheduler cosine --epochs 50 --weight_decay 0.1  --tensorboard_subfolder optimizer
