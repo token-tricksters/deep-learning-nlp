@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 import torch.nn.functional as F
+from pytorch_optimizer import SophiaH
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -25,7 +26,7 @@ from datasets import (
     load_multitask_data,
 )
 from evaluation import model_eval_multitask, test_model_multitask
-from optimizer import AdamW, SophiaH
+from optimizer import AdamW
 
 TQDM_DISABLE = False
 
@@ -239,7 +240,7 @@ def train_multitask(args):
 
     sst_train_dataloader = DataLoader(
         sst_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_train_data.collate_fn,
     )
@@ -259,7 +260,7 @@ def train_multitask(args):
 
     para_train_dataloader = DataLoader(
         para_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_train_data.collate_fn,
     )
@@ -279,7 +280,7 @@ def train_multitask(args):
 
     sts_train_dataloader = DataLoader(
         sts_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_train_data.collate_fn,
     )
@@ -307,14 +308,14 @@ def train_multitask(args):
 
     # Print model configuration
     separator = "=" * 60
-    print(separator, file=sys.stderr)
-    print("    Multitask BERT Model Configuration", file=sys.stderr)
-    print(separator, file=sys.stderr)
+    print(separator)
+    print("    Multitask BERT Model Configuration")
+    print(separator)
     filtered_vars = {
         k: v for k, v in vars(args).items() if "csv" not in str(v)
     }  # Filter out csv files
-    print(pformat(filtered_vars), file=sys.stderr)
-    print("-" * 60, file=sys.stderr)
+    print(pformat(filtered_vars))
+    print("-" * 60)
 
     # Print Git info
     branch = (
@@ -330,21 +331,21 @@ def train_multitask(args):
     )
 
     # Print Git info
-    print(f"Git Branch: {branch}", file=sys.stderr)
-    print(f"Git Hash: {commit} {is_modified}", file=sys.stderr)
-    print("-" * 60, file=sys.stderr)  # Adjust as needed
-    print(f"Command: {' '.join(sys.argv)}", file=sys.stderr)
-    print(separator, file=sys.stderr)
+    print(f"Git Branch: {branch}")
+    print(f"Git Hash: {commit} {is_modified}")
+    print("-" * 60)  # Adjust as needed
+    print(f"Command: {' '.join(sys.argv)}")
+    print(separator)
 
     model = MultitaskBERT(config)
     model = model.to(device)
 
     lr = args.lr
-    hess_interval = 10
+    hess_interval = args.hess_interval
     ctx = (
         nullcontext()
         if not args.use_gpu
-        else torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
+        else torch.amp.autocast(device_type="cuda", dtype=torch.float32)
     )
 
     if args.optimizer == "adamw":
@@ -352,7 +353,13 @@ def train_multitask(args):
     elif args.optimizer == "sophiah":
         # TODO: Tune this further, https://github.com/Liuhong99/Sophia#hyper-parameter-tuning
         optimizer = SophiaH(
-            model.parameters(), lr=lr, eps=1e-12, rho=0.05, betas=(0.985, 0.99), weight_decay=args.weight_decay
+            model.parameters(),
+            lr=lr,
+            betas=(0.985, 0.99),
+            weight_decay=args.weight_decay,
+            eps=1e-12,
+            p=args.rho,
+            update_period=hess_interval,
         )
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
@@ -388,6 +395,22 @@ def train_multitask(args):
         + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
         + name
     )
+
+    if args.profiler:
+        prof = torch.profiler.profile(
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                args.logdir
+                + "/multitask_classifier/"
+                + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+                + name
+                + "_profiler"
+            ),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+        )
+        prof.start()
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -480,18 +503,14 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward()
-
-            # Check if we use the Sophia Optimizer
-            if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
-                # Update the Hessian EMA
-                optimizer.update_hessian()
+            full_loss.backward(create_graph=True)
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             # Update the parameters
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
 
             optimizer_a.zero_grad()
             sts_loss.backward()
@@ -518,6 +537,9 @@ def train_multitask(args):
 
             writer.add_scalar("Loss/Minibatches", full_loss.item(), num_batches)
 
+            if args.profiler:
+                prof.step()
+
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
@@ -529,14 +551,15 @@ def train_multitask(args):
             sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device
         )
 
-        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
-        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-
-        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
-        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-
-        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
-        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
+        metric_dict = {
+            "para_acc/train/Epochs": para_train_acc,
+            "para_acc/dev/Epochs": para_dev_acc,
+            "sst_acc/train/Epochs": sst_train_acc,
+            "sst_acc/dev/Epochs": sst_dev_acc,
+            "sts_acc/train/Epochs": sts_train_acc,
+            "sts_acc/dev/Epochs": sts_dev_acc,
+        }
+        writer.add_hparams(vars(args), metric_dict)
 
         if (
             para_dev_acc > best_dev_acc_para
@@ -605,6 +628,8 @@ def get_args():
 
     parser.add_argument("--additional_input", action="store_true")
 
+    parser.add_argument("--profiler", action="store_true")
+
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")
     parser.add_argument("--para", action="store_true")
@@ -631,7 +656,11 @@ def get_args():
         choices=("adamw", "sophiah"),
         default="adamw",
     )
+    parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
     parser.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument(
+        "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
+    )
 
     args, _ = parser.parse_known_args()
 
@@ -640,7 +669,9 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=1e-5 if args.option == "finetune" else 1e-3,
+        default=1e-5 * (1 / args.rho if args.optimizer == "sophiah" else 1)
+        if args.option == "finetune"
+        else 1e-3 * (1 / args.rho if args.optimizer == "sophiah" else 1),
     )
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--tensorboard_subfolder", type=str, default=None)
@@ -650,6 +681,7 @@ def get_args():
     )
 
     args = parser.parse_args()
+
     return args
 
 
