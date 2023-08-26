@@ -10,9 +10,13 @@ from pprint import pformat
 from types import SimpleNamespace
 
 import numpy as np
+import ray
 import torch
 import torch.nn.functional as F
 from pytorch_optimizer import SophiaH
+from ray import air, tune
+from ray.air import session
+from ray.tune.schedulers import ASHAScheduler
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -208,6 +212,9 @@ def load_model(filepath, model, optimizer, use_gpu):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
+    # Ray: Need to convert args from a dict to a Namespace
+    args = SimpleNamespace(**args)
+
     train_all_datasets = True
     n_datasets = args.sst + args.sts + args.para
     if args.sst or args.sts or args.para:
@@ -215,7 +222,6 @@ def train_multitask(args):
     if n_datasets == 0:
         n_datasets = 3
 
-    device = torch.device("cuda") if args.use_gpu else torch.device("cpu")
     # Load data
     # Create the data and its corresponding datasets and dataloader
     sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(
@@ -243,12 +249,14 @@ def train_multitask(args):
         shuffle=True,
         batch_size=args.batch_size,
         collate_fn=sst_train_data.collate_fn,
+        num_workers=2,
     )
     sst_dev_dataloader = DataLoader(
         sst_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_dev_data.collate_fn,
+        num_workers=2,
     )
     total_num_batches += len(sst_train_dataloader)
 
@@ -263,12 +271,14 @@ def train_multitask(args):
         shuffle=True,
         batch_size=args.batch_size,
         collate_fn=para_train_data.collate_fn,
+        num_workers=2,
     )
     para_dev_dataloader = DataLoader(
         para_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_dev_data.collate_fn,
+        num_workers=2,
     )
     total_num_batches += len(para_train_dataloader)
 
@@ -283,12 +293,14 @@ def train_multitask(args):
         shuffle=True,
         batch_size=args.batch_size,
         collate_fn=sts_train_data.collate_fn,
+        num_workers=2,
     )
     sts_dev_dataloader = DataLoader(
         sts_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_dev_data.collate_fn,
+        num_workers=2,
     )
     total_num_batches += len(sts_train_dataloader)
 
@@ -338,6 +350,14 @@ def train_multitask(args):
     print(separator)
 
     model = MultitaskBERT(config)
+
+    device = torch.device("cpu")
+    if torch.cuda.is_available() and args.use_gpu:
+        device = torch.device("cuda")
+        if torch.cuda.device_count() > 1:
+            print(f"Using {torch.cuda.device_count()} GPUs", file=sys.stderr)
+            model = nn.DataParallel(model)
+
     model = model.to(device)
 
     lr = args.lr
@@ -528,6 +548,9 @@ def train_multitask(args):
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
 
+        # Report to Ray Tune
+        session.report({"mean_accuracy": dev_acc / 3})
+
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
 
@@ -639,11 +662,56 @@ def get_args():
 
 
 if __name__ == "__main__":
-    try:
-        args = get_args()
-        args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
-        seed_everything(args.seed)  # fix the seed for reproducibility
-        train_multitask(args)
-        test_model(args)
-    except KeyboardInterrupt:
-        print("Received KeyboardInterrupt...")
+    args = get_args()
+    args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
+    seed_everything(args.seed)  # fix the seed for reproducibility
+
+    # Ray Tune
+    config = vars(args)
+    tune_config = {
+        "lr": tune.loguniform(1e-5, 1e-3),
+        "batch_size": tune.choice([1, 2, 4]),
+    }
+    config.update(tune_config)
+
+    # Scheduler: Async Hyperband
+    scheduler = ASHAScheduler(
+        max_t=args.epochs,
+        grace_period=1,
+        reduction_factor=2,
+    )
+
+    ray.init(log_to_driver=False)  # Don't print logs to console
+
+    tuner = tune.Tuner(
+        tune.with_resources(
+            tune.with_parameters(train_multitask),
+            resources={"cpu": 4, "gpu": torch.cuda.device_count()},
+        ),
+        tune_config=tune.TuneConfig(
+            metric="mean_accuracy",
+            mode="max",
+            num_samples=1,  # Number of trials
+            scheduler=scheduler,
+            chdir_to_trial_dir=False,  # Still access local files
+        ),
+        run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
+        param_space=config,
+    )
+
+    results = tuner.fit()
+    best_result = results.get_best_result("mean_accuracy", "max")
+
+    separator = "=" * 60
+    print(separator)
+    print("    Best Multitask BERT Model Configuration")
+    print(separator)
+    filtered_vars = {
+        k: v for k, v in best_result.config.items() if "csv" not in str(v)
+    }  # Filter out csv files
+    print(pformat(filtered_vars))
+    print("-" * 60)
+    print("Best mean_accuracy: ", best_result.metrics["mean_accuracy"])
+
+    # train_multitask(args)
+    # test_model(args)
