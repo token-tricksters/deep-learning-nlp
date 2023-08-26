@@ -250,7 +250,6 @@ def train_multitask(args):
         batch_size=args.batch_size,
         collate_fn=sst_dev_data.collate_fn,
     )
-    total_num_batches += len(sst_train_dataloader)
 
     # if train_all_datasets or args.para:
     para_train_data = SentencePairDataset(
@@ -270,7 +269,6 @@ def train_multitask(args):
         batch_size=args.batch_size,
         collate_fn=para_dev_data.collate_fn,
     )
-    total_num_batches += len(para_train_dataloader)
 
     # if train_all_datasets or args.sts:
     sts_train_data = SentencePairDataset(
@@ -290,6 +288,7 @@ def train_multitask(args):
         batch_size=args.batch_size,
         collate_fn=sts_dev_data.collate_fn,
     )
+
     total_num_batches += math.ceil(args.samples_per_epoch / args.batch_size)
 
     # Init model
