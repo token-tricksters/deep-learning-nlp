@@ -6,7 +6,7 @@ You should only need to call load_multitask_data to get the training and dev exa
 to train your model.
 """
 import csv
-import os
+import platform
 import random
 
 import torch
@@ -57,7 +57,7 @@ class SentenceClassificationDataset(Dataset):
         encoding = self.tokenizer(sents, return_tensors="pt", padding=True, truncation=True)
 
         # Fix for Windows
-        if os.uname().sysname == "Windows":
+        if platform.system() == "Windows":
             encoding.to("cpu")
 
         token_ids = torch.LongTensor(encoding["input_ids"])
@@ -154,7 +154,7 @@ class SentencePairDataset(Dataset):
         encoding2 = self.tokenizer(sent2, return_tensors="pt", padding=True, truncation=True)
 
         # Fix for Windows
-        if os.uname().sysname == "Windows":
+        if platform.system() == "Windows":
             encoding1.to("cpu")
             encoding2.to("cpu")
 
