@@ -20,6 +20,7 @@ pip install scikit-learn
 pip install tokenizers
 pip install explainaboard_client
 pip install tensorboard
+pip install torch_tb_profiler
 
 # POS and NER tagging
 conda install -y -c conda-forge spacy cupy spacy-transformers

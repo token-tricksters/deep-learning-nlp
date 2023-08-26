@@ -116,7 +116,7 @@ class MultitaskBERT(nn.Module):
         return logits
 
     def predict_paraphrase_train(
-        self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
+            self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
     ):
         """
         Given a batch of pairs of sentences, outputs logits for predicting whether they are paraphrases.
@@ -240,7 +240,7 @@ def train_multitask(args):
 
     sst_train_dataloader = DataLoader(
         sst_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_train_data.collate_fn,
     )
@@ -260,7 +260,7 @@ def train_multitask(args):
 
     para_train_dataloader = DataLoader(
         para_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_train_data.collate_fn,
     )
@@ -280,7 +280,7 @@ def train_multitask(args):
 
     sts_train_dataloader = DataLoader(
         sts_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_train_data.collate_fn,
     )
@@ -345,7 +345,7 @@ def train_multitask(args):
     ctx = (
         nullcontext()
         if not args.use_gpu
-        else torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
+        else torch.amp.autocast(device_type="cuda", dtype=torch.float32)
     )
 
     if args.optimizer == "adamw":
@@ -382,10 +382,23 @@ def train_multitask(args):
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(
         log_dir=args.logdir
-        + "/multitask_classifier/"
-        + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
-        + name
+                + "/multitask_classifier/"
+                + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+                + name
     )
+
+    if args.profiler:
+        prof = torch.profiler.profile(
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(args.logdir
+                                                                    + "/multitask_classifier/"
+                                                                    + (
+                                                                        f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+                                                                    + name + "_profiler"),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True)
+        prof.start()
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -410,10 +423,10 @@ def train_multitask(args):
             print(f"Unfreezed BERT layers: {unfreezed}", file=sys.stderr)
 
         for sts, para, sst in tqdm(
-            zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-            total=math.ceil(args.samples_per_epoch / args.batch_size),
-            desc=f"train-{epoch}",
-            disable=TQDM_DISABLE,
+                zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+                total=math.ceil(args.samples_per_epoch / args.batch_size),
+                desc=f"train-{epoch}",
+                disable=TQDM_DISABLE,
         ):
             optimizer.zero_grad(set_to_none=True)
             sts_loss, para_loss, sst_loss = 0, 0, 0
@@ -496,6 +509,9 @@ def train_multitask(args):
 
             writer.add_scalar("Loss/Minibatches", full_loss.item(), num_batches)
 
+            if args.profiler:
+                prof.step()
+
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
 
@@ -507,19 +523,20 @@ def train_multitask(args):
             sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device
         )
 
-        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
-        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-
-        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
-        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-
-        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
-        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
+        metric_dict = {
+            "para_acc/train/Epochs": para_train_acc,
+            "para_acc/dev/Epochs": para_dev_acc,
+            "sst_acc/train/Epochs": sst_train_acc,
+            "sst_acc/dev/Epochs": sst_dev_acc,
+            "sts_acc/train/Epochs": sts_train_acc,
+            "sts_acc/dev/Epochs": sts_dev_acc,
+        }
+        writer.add_hparams(vars(args), metric_dict)
 
         if (
-            para_dev_acc > best_dev_acc_para
-            and sst_dev_acc > best_dev_acc_sst
-            and sts_dev_acc > best_dev_acc_sts
+                para_dev_acc > best_dev_acc_para
+                and sst_dev_acc > best_dev_acc_sst
+                and sts_dev_acc > best_dev_acc_sts
         ):
             best_dev_acc_para = para_dev_acc
             best_dev_acc_sst = sst_dev_acc
@@ -582,6 +599,8 @@ def get_args():
     parser.add_argument("--use_gpu", action="store_true")
 
     parser.add_argument("--additional_input", action="store_true")
+
+    parser.add_argument("--profiler", action="store_true")
 
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")
