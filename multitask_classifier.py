@@ -530,7 +530,7 @@ def train_multitask(args):
             "sts_acc/train/Epochs": sts_train_acc,
             "sts_acc/dev/Epochs": sts_dev_acc,
         }
-        writer.add_hparams(vars(args), metric_dict, run_name=path)
+        writer.add_hparams(vars(args), metric_dict, run_name="")
 
         if (
             para_dev_acc > best_dev_acc_para
