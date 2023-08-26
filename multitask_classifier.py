@@ -395,6 +395,8 @@ def train_multitask(args):
     )
     writer = SummaryWriter(log_dir=path)
 
+    writer.add_hparams(vars(args), {}, run_name="hparams")
+
     if args.profiler:
         prof = torch.profiler.profile(
             schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
@@ -544,15 +546,12 @@ def train_multitask(args):
             sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device
         )
 
-        metric_dict = {
-            "para_acc/train/Epochs": para_train_acc,
-            "para_acc/dev/Epochs": para_dev_acc,
-            "sst_acc/train/Epochs": sst_train_acc,
-            "sst_acc/dev/Epochs": sst_dev_acc,
-            "sts_acc/train/Epochs": sts_train_acc,
-            "sts_acc/dev/Epochs": sts_dev_acc,
-        }
-        writer.add_hparams(vars(args), metric_dict, run_name="")
+        writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
+        writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
+        writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
+        writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
+        writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
+        writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
         if (
             para_dev_acc > best_dev_acc_para
