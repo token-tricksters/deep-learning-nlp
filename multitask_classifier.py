@@ -116,7 +116,7 @@ class MultitaskBERT(nn.Module):
         return logits
 
     def predict_paraphrase_train(
-            self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
+        self, input_ids_1, attention_mask_1, input_ids_2, attention_mask_2
     ):
         """
         Given a batch of pairs of sentences, outputs logits for predicting whether they are paraphrases.
@@ -382,22 +382,25 @@ def train_multitask(args):
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
     writer = SummaryWriter(
         log_dir=args.logdir
-                + "/multitask_classifier/"
-                + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
-                + name
+        + "/multitask_classifier/"
+        + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+        + name
     )
 
     if args.profiler:
         prof = torch.profiler.profile(
             schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(args.logdir
-                                                                    + "/multitask_classifier/"
-                                                                    + (
-                                                                        f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
-                                                                    + name + "_profiler"),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                args.logdir
+                + "/multitask_classifier/"
+                + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
+                + name
+                + "_profiler"
+            ),
             record_shapes=True,
             profile_memory=True,
-            with_stack=True)
+            with_stack=True,
+        )
         prof.start()
 
     # Run for the specified number of epochs
@@ -423,10 +426,10 @@ def train_multitask(args):
             print(f"Unfreezed BERT layers: {unfreezed}", file=sys.stderr)
 
         for sts, para, sst in tqdm(
-                zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-                total=math.ceil(args.samples_per_epoch / args.batch_size),
-                desc=f"train-{epoch}",
-                disable=TQDM_DISABLE,
+            zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
+            total=math.ceil(args.samples_per_epoch / args.batch_size),
+            desc=f"train-{epoch}",
+            disable=TQDM_DISABLE,
         ):
             optimizer.zero_grad(set_to_none=True)
             sts_loss, para_loss, sst_loss = 0, 0, 0
@@ -534,9 +537,9 @@ def train_multitask(args):
         writer.add_hparams(vars(args), metric_dict)
 
         if (
-                para_dev_acc > best_dev_acc_para
-                and sst_dev_acc > best_dev_acc_sst
-                and sts_dev_acc > best_dev_acc_sts
+            para_dev_acc > best_dev_acc_para
+            and sst_dev_acc > best_dev_acc_sst
+            and sts_dev_acc > best_dev_acc_sts
         ):
             best_dev_acc_para = para_dev_acc
             best_dev_acc_sst = sst_dev_acc
