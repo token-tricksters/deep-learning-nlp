@@ -364,14 +364,13 @@ def train_multitask(args):
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
-    optimizer_a = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
-    optimizer_b = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
-    optimizer_c = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+    optimizer_sts = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+    optimizer_para = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+    optimizer_sst = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
 
-    scheduler_a = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_a, 1, 1)
-    scheduler_b = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_b, 1, 1)
-    scheduler_c = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_c, 1, 1)
-
+    scheduler_sts = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
+    scheduler_para = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
+    scheduler_sst = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
 
     if args.scheduler == "plateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
@@ -512,24 +511,20 @@ def train_multitask(args):
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
-            optimizer_a.zero_grad()
+            optimizer_sts.zero_grad()
             sts_loss.backward()
-            optimizer_a.step()
+            optimizer_sts.step()
 
-            optimizer_b.zero_grad()
+            optimizer_para.zero_grad()
             para_loss.backward()
-            optimizer_b.step()
+            optimizer_para.step()
 
-            optimizer_c.zero_grad()
+            optimizer_sst.zero_grad()
             sst_loss.backward()
-            optimizer_c.step()
+            optimizer_sst.step()
 
             train_loss += full_loss.item()
             num_batches += 1
-
-            scheduler_a.step(epoch + num_batches / total_num_batches)
-            scheduler_b.step(epoch + num_batches / total_num_batches)
-            scheduler_c.step(epoch + num_batches / total_num_batches)
 
             if args.scheduler == "cosine":
                 # Potentially update the scheduler once per epoch instead
@@ -576,7 +571,14 @@ def train_multitask(args):
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
 
+        scheduler_sts.step(sts_dev_acc)
+        scheduler_para.step(para_dev_acc)
+        scheduler_sst.step(sst_dev_acc)
+
         writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/sts", optimizer_sts.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/para", optimizer_para.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/sst", optimizer_sst.param_groups[0]["lr"], epoch)
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
