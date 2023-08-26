@@ -290,7 +290,7 @@ def train_multitask(args):
         batch_size=args.batch_size,
         collate_fn=sts_dev_data.collate_fn,
     )
-    total_num_batches += len(sts_train_dataloader)
+    total_num_batches += math.ceil(args.samples_per_epoch / args.batch_size)
 
     # Init model
     config = {
@@ -380,23 +380,18 @@ def train_multitask(args):
         model, optimizer, _, config = load_model(args.checkpoint, model, optimizer, args.use_gpu)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
-    writer = SummaryWriter(
-        log_dir=args.logdir
+    path = (
+        args.logdir
         + "/multitask_classifier/"
         + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
         + name
     )
+    writer = SummaryWriter(log_dir=path)
 
     if args.profiler:
         prof = torch.profiler.profile(
             schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(
-                args.logdir
-                + "/multitask_classifier/"
-                + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
-                + name
-                + "_profiler"
-            ),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(path + "_profiler"),
             record_shapes=True,
             profile_memory=True,
             with_stack=True,
@@ -427,7 +422,7 @@ def train_multitask(args):
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-            total=math.ceil(args.samples_per_epoch / args.batch_size),
+            total=total_num_batches,
             desc=f"train-{epoch}",
             disable=TQDM_DISABLE,
         ):
@@ -510,7 +505,9 @@ def train_multitask(args):
                 # Potentially update the scheduler once per epoch instead
                 scheduler.step(epoch + num_batches / total_num_batches)
 
-            writer.add_scalar("Loss/Minibatches", full_loss.item(), num_batches)
+            writer.add_scalar(
+                "Loss/Minibatches", full_loss.item(), num_batches + epoch * total_num_batches
+            )
 
             if args.profiler:
                 prof.step()
@@ -534,7 +531,7 @@ def train_multitask(args):
             "sts_acc/train/Epochs": sts_train_acc,
             "sts_acc/dev/Epochs": sts_dev_acc,
         }
-        writer.add_hparams(vars(args), metric_dict)
+        writer.add_hparams(vars(args), metric_dict, run_name=path)
 
         if (
             para_dev_acc > best_dev_acc_para
