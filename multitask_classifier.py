@@ -361,6 +361,10 @@ def train_multitask(args):
     optimizer_b = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
     optimizer_c = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
 
+    scheduler_a = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_a, 1, 1)
+    scheduler_b = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_b, 1, 1)
+    scheduler_c = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_c, 1, 1)
+
 
     if args.scheduler == "plateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
@@ -503,6 +507,10 @@ def train_multitask(args):
 
             train_loss += full_loss.item()
             num_batches += 1
+
+            scheduler_a.step(epoch + num_batches / total_num_batches)
+            scheduler_b.step(epoch + num_batches / total_num_batches)
+            scheduler_c.step(epoch + num_batches / total_num_batches)
 
             if args.scheduler == "cosine":
                 # Potentially update the scheduler once per epoch instead
