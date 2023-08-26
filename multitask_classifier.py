@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 import torch.nn.functional as F
+from pytorch_optimizer import SophiaH
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -25,7 +26,7 @@ from datasets import (
     load_multitask_data,
 )
 from evaluation import model_eval_multitask, test_model_multitask
-from optimizer import AdamW, SophiaH
+from optimizer import AdamW
 
 TQDM_DISABLE = False
 
@@ -354,10 +355,11 @@ def train_multitask(args):
         optimizer = SophiaH(
             model.parameters(),
             lr=lr,
-            eps=1e-12,
-            rho=args.rho,
             betas=(0.985, 0.99),
             weight_decay=args.weight_decay,
+            eps=1e-12,
+            p=args.rho,
+            update_period=hess_interval,
         )
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
@@ -476,18 +478,14 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward()
-
-            # Check if we use the Sophia Optimizer
-            if args.optimizer == "sophiah" and num_batches % hess_interval == hess_interval - 1:
-                # Update the Hessian EMA
-                optimizer.update_hessian()
+            full_loss.backward(create_graph=True)
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             # Update the parameters
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
 
             train_loss += full_loss.item()
             num_batches += 1
