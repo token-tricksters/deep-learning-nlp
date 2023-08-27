@@ -10,13 +10,9 @@ from pprint import pformat
 from types import SimpleNamespace
 
 import numpy as np
-import ray
 import torch
 import torch.nn.functional as F
 from pytorch_optimizer import SophiaH
-from ray import air, tune
-from ray.air import session
-from ray.tune.schedulers import ASHAScheduler
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -213,7 +209,8 @@ def load_model(filepath, model, optimizer, use_gpu):
 ## Currently only trains on sst dataset
 def train_multitask(args):
     # Ray: Need to convert args from a dict to a Namespace
-    args = SimpleNamespace(**args)
+    if isinstance(args, dict):
+        args = SimpleNamespace(**args)
 
     train_all_datasets = True
     n_datasets = args.sst + args.sts + args.para
@@ -549,7 +546,8 @@ def train_multitask(args):
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
 
         # Report to Ray Tune
-        session.report({"mean_accuracy": dev_acc / 3})
+        if args.hpo:
+            session.report({"mean_accuracy": dev_acc / 3})
 
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
@@ -656,6 +654,8 @@ def get_args():
         "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "none")
     )
 
+    parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
+
     args = parser.parse_args()
 
     return args
@@ -667,51 +667,60 @@ if __name__ == "__main__":
     seed_everything(args.seed)  # fix the seed for reproducibility
 
     # Ray Tune
-    config = vars(args)
-    tune_config = {
-        "lr": tune.loguniform(1e-5, 1e-3),
-        "batch_size": tune.choice([1, 2, 4]),
-    }
-    config.update(tune_config)
+    if args.hpo:
+        import ray
+        from ray import air, tune
+        from ray.air import session
+        from ray.tune.schedulers import ASHAScheduler
 
-    # Scheduler: Async Hyperband
-    scheduler = ASHAScheduler(
-        max_t=args.epochs,
-        grace_period=1,
-        reduction_factor=2,
-    )
+        config = vars(args)
+        tune_config = {
+            "lr": tune.loguniform(1e-5, 1e-3),
+            "batch_size": tune.choice([1, 2, 4]),
+        }
+        config.update(tune_config)
 
-    ray.init(log_to_driver=False)  # Don't print logs to console
+        # Scheduler: Async Hyperband
+        scheduler = ASHAScheduler(
+            max_t=args.epochs,
+            grace_period=1,
+            reduction_factor=2,
+        )
 
-    tuner = tune.Tuner(
-        tune.with_resources(
-            tune.with_parameters(train_multitask),
-            resources={"cpu": 4, "gpu": torch.cuda.device_count()},
-        ),
-        tune_config=tune.TuneConfig(
-            metric="mean_accuracy",
-            mode="max",
-            num_samples=1,  # Number of trials
-            scheduler=scheduler,
-            chdir_to_trial_dir=False,  # Still access local files
-        ),
-        run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
-        param_space=config,
-    )
+        ray.init(log_to_driver=False)  # Don't print logs to console
 
-    results = tuner.fit()
-    best_result = results.get_best_result("mean_accuracy", "max")
+        tuner = tune.Tuner(
+            tune.with_resources(
+                tune.with_parameters(train_multitask),
+                resources={"cpu": 4, "gpu": torch.cuda.device_count()},
+            ),
+            tune_config=tune.TuneConfig(
+                metric="mean_accuracy",
+                mode="max",
+                num_samples=1,  # Number of trials
+                scheduler=scheduler,
+                chdir_to_trial_dir=False,  # Still access local files
+            ),
+            run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
+            param_space=config,
+        )
 
-    separator = "=" * 60
-    print(separator)
-    print("    Best Multitask BERT Model Configuration")
-    print(separator)
-    filtered_vars = {
-        k: v for k, v in best_result.config.items() if "csv" not in str(v)
-    }  # Filter out csv files
-    print(pformat(filtered_vars))
-    print("-" * 60)
-    print("Best mean_accuracy: ", best_result.metrics["mean_accuracy"])
+        results = tuner.fit()
+        best_result = results.get_best_result("mean_accuracy", "max")
 
-    # train_multitask(args)
-    # test_model(args)
+        separator = "=" * 60
+        print(separator)
+        print("    Best Multitask BERT Model Configuration")
+        print(separator)
+        filtered_vars = {
+            k: v for k, v in best_result.config.items() if "csv" not in str(v)
+        }  # Filter out csv files
+        print(pformat(filtered_vars))
+        print("-" * 60)
+        print("Best mean_accuracy: ", best_result.metrics["mean_accuracy"])
+    else:
+        try:
+            train_multitask(args)
+            test_model(args)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt.")
