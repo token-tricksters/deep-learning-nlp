@@ -243,7 +243,7 @@ def train_multitask(args):
 
     sst_train_dataloader = DataLoader(
         sst_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_train_data.collate_fn,
         num_workers=2,
@@ -255,7 +255,6 @@ def train_multitask(args):
         collate_fn=sst_dev_data.collate_fn,
         num_workers=2,
     )
-    total_num_batches += len(sst_train_dataloader)
 
     # if train_all_datasets or args.para:
     para_train_data = SentencePairDataset(
@@ -265,7 +264,7 @@ def train_multitask(args):
 
     para_train_dataloader = DataLoader(
         para_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_train_data.collate_fn,
         num_workers=2,
@@ -277,7 +276,6 @@ def train_multitask(args):
         collate_fn=para_dev_data.collate_fn,
         num_workers=2,
     )
-    total_num_batches += len(para_train_dataloader)
 
     # if train_all_datasets or args.sts:
     sts_train_data = SentencePairDataset(
@@ -287,7 +285,7 @@ def train_multitask(args):
 
     sts_train_dataloader = DataLoader(
         sts_train_data,
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_train_data.collate_fn,
         num_workers=2,
@@ -299,7 +297,8 @@ def train_multitask(args):
         collate_fn=sts_dev_data.collate_fn,
         num_workers=2,
     )
-    total_num_batches += len(sts_train_dataloader)
+
+    total_num_batches += math.ceil(args.samples_per_epoch / args.batch_size)
 
     # Init model
     config = {
@@ -362,7 +361,7 @@ def train_multitask(args):
     ctx = (
         nullcontext()
         if not args.use_gpu
-        else torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
+        else torch.amp.autocast(device_type="cuda", dtype=torch.float32)
     )
 
     if args.optimizer == "adamw":
@@ -397,12 +396,25 @@ def train_multitask(args):
         model, optimizer, _, config = load_model(args.checkpoint, model, optimizer, args.use_gpu)
 
     name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.epochs}-{type(optimizer).__name__}-{lr}-{args.scheduler}"
-    writer = SummaryWriter(
-        log_dir=args.logdir
+    path = (
+        args.logdir
         + "/multitask_classifier/"
         + (f"{args.tensorboard_subfolder}/" if args.tensorboard_subfolder else "")
         + name
     )
+    writer = SummaryWriter(log_dir=path)
+
+    writer.add_hparams(vars(args), {}, run_name="hparams")
+
+    if args.profiler:
+        prof = torch.profiler.profile(
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(path + "_profiler"),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+        )
+        prof.start()
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -428,7 +440,7 @@ def train_multitask(args):
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
-            total=math.ceil(args.samples_per_epoch / args.batch_size),
+            total=total_num_batches,
             desc=f"train-{epoch}",
             disable=TQDM_DISABLE,
         ):
@@ -495,7 +507,7 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward(create_graph=True)
+            full_loss.backward(create_graph=True if args.optimizer == "sophiah" else False)
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -511,7 +523,12 @@ def train_multitask(args):
                 # Potentially update the scheduler once per epoch instead
                 scheduler.step(epoch + num_batches / total_num_batches)
 
-            writer.add_scalar("Loss/Minibatches", full_loss.item(), num_batches)
+            writer.add_scalar(
+                "Loss/Minibatches", full_loss.item(), num_batches + epoch * total_num_batches
+            )
+
+            if args.profiler:
+                prof.step()
 
         train_loss = train_loss / num_batches
         writer.add_scalar("Loss/Epochs", train_loss, epoch)
@@ -526,10 +543,8 @@ def train_multitask(args):
 
         writer.add_scalar("para_acc/train/Epochs", para_train_acc, epoch)
         writer.add_scalar("para_acc/dev/Epochs", para_dev_acc, epoch)
-
         writer.add_scalar("sst_acc/train/Epochs", sst_train_acc, epoch)
         writer.add_scalar("sst_acc/dev/Epochs", sst_dev_acc, epoch)
-
         writer.add_scalar("sts_acc/train/Epochs", sts_train_acc, epoch)
         writer.add_scalar("sts_acc/dev/Epochs", sts_dev_acc, epoch)
 
@@ -603,6 +618,8 @@ def get_args():
     parser.add_argument("--use_gpu", action="store_true")
 
     parser.add_argument("--additional_input", action="store_true")
+
+    parser.add_argument("--profiler", action="store_true")
 
     parser.add_argument("--sts", action="store_true")
     parser.add_argument("--sst", action="store_true")
