@@ -574,6 +574,7 @@ def train_multitask(args):
                     "para_dev_acc": para_dev_acc,
                     "sts_dev_acc": sts_dev_acc,
                     "mean_dev_acc": dev_acc / 3,
+                    "mean_train_acc": train_acc / 3,
                 }
             )
 
@@ -719,8 +720,10 @@ if __name__ == "__main__":
 
         config = vars(args)
         tune_config = {
-            "lr": tune.loguniform(1e-5, 1e-3),
-            "weight_decay": tune.loguniform(1e-4, 1e-1),
+            "lr": tune.loguniform(1e-5, 3e-4),
+            "weight_decay": tune.choice([0.01, 0.001, 0.0001, 0]),
+            "scheduler": tune.choice(["plateau", "cosine", "none"]),
+            "hidden_dropout_prob": tune.choice([0.1, 0.2, 0.3, 0.4, 0.5]),
         }
         config.update(tune_config)
 
@@ -744,7 +747,7 @@ if __name__ == "__main__":
                 resources={"cpu": 4, "gpu": torch.cuda.device_count()},
             ),
             tune_config=tune.TuneConfig(
-                num_samples=10,  # Number of trials
+                num_samples=20,  # Number of trials
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
