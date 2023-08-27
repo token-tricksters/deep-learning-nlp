@@ -701,21 +701,21 @@ if __name__ == "__main__":
         config = vars(args)
         tune_config = {
             "lr": tune.loguniform(1e-5, 1e-3),
-            "batch_size": tune.choice([1, 2, 4]),
+            "weight_decay": tune.loguniform(1e-4, 1e-1),
         }
         config.update(tune_config)
 
         # Scheduler: Async Hyperband
         scheduler = ASHAScheduler(
             max_t=args.epochs,
-            grace_period=1,
+            grace_period=2,
             reduction_factor=2,
         )
 
         # Search Algorithm: Optuna
         algo = OptunaSearch(metric="mean_accuracy", mode="max")
 
-        ray.init(log_to_driver=False)  # Don't print logs to console
+        ray.init(num_cpu=4, log_to_driver=False)  # Don't print logs to console
 
         tuner = tune.Tuner(
             tune.with_resources(
@@ -729,9 +729,10 @@ if __name__ == "__main__":
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
-                max_concurrent_trials=4,  # Number of trials to run concurrently
+                max_concurrent_trials=1,  # Number of trials to run concurrently
+                trial_name_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={v}' for k, v in trial.evaluated_params.items())}",
             ),
-            run_config=air.RunConfig(log_to_file="std.log", verbose=2),  # Don't spam CLI
+            run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
             param_space=config,
         )
 
