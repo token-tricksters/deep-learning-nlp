@@ -239,7 +239,9 @@ def train_multitask(args):
     sst_train_data = SentenceClassificationDataset(
         sst_train_data, args, override_length=args.samples_per_epoch
     )
-    sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
+    sst_dev_data = SentenceClassificationDataset(
+        sst_dev_data, args, override_length=10 if args.smoketest else None
+    )
 
     sst_train_dataloader = DataLoader(
         sst_train_data,
@@ -260,7 +262,9 @@ def train_multitask(args):
     para_train_data = SentencePairDataset(
         para_train_data, args, override_length=args.samples_per_epoch
     )
-    para_dev_data = SentencePairDataset(para_dev_data, args)
+    para_dev_data = SentencePairDataset(
+        para_dev_data, args, override_length=10 if args.smoketest else None
+    )
 
     para_train_dataloader = DataLoader(
         para_train_data,
@@ -281,7 +285,9 @@ def train_multitask(args):
     sts_train_data = SentencePairDataset(
         sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch
     )
-    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
+    sts_dev_data = SentencePairDataset(
+        sts_dev_data, args, isRegression=True, override_length=10 if args.smoketest else None
+    )
 
     sts_train_dataloader = DataLoader(
         sts_train_data,
@@ -672,6 +678,7 @@ def get_args():
     )
 
     parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
+    parser.add_argument("--smoketest", action="store_true", help="Run a smoke test")
 
     args = parser.parse_args()
 
@@ -689,6 +696,7 @@ if __name__ == "__main__":
         from ray import air, tune
         from ray.air import session
         from ray.tune.schedulers import ASHAScheduler
+        from ray.tune.search.optuna import OptunaSearch
 
         config = vars(args)
         tune_config = {
@@ -704,6 +712,9 @@ if __name__ == "__main__":
             reduction_factor=2,
         )
 
+        # Search Algorithm: Optuna
+        algo = OptunaSearch(metric="mean_accuracy", mode="max")
+
         ray.init(log_to_driver=False)  # Don't print logs to console
 
         tuner = tune.Tuner(
@@ -714,11 +725,13 @@ if __name__ == "__main__":
             tune_config=tune.TuneConfig(
                 metric="mean_accuracy",
                 mode="max",
-                num_samples=1,  # Number of trials
+                num_samples=10,  # Number of trials
                 scheduler=scheduler,
+                search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
+                max_concurrent_trials=4,  # Number of trials to run concurrently
             ),
-            run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
+            run_config=air.RunConfig(log_to_file="std.log", verbose=2),  # Don't spam CLI
             param_space=config,
         )
 
@@ -738,6 +751,7 @@ if __name__ == "__main__":
     else:
         try:
             train_multitask(args)
-            test_model(args)
+            if not args.smoketest:
+                test_model(args)
         except KeyboardInterrupt:
             print("Keyboard interrupt.")

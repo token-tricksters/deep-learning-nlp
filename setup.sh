@@ -36,3 +36,4 @@ pip install lit
 
 pip install pytorch_optimizer
 pip install "ray[tune]"
+pip install optuna
