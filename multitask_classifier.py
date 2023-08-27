@@ -568,7 +568,14 @@ def train_multitask(args):
 
         # Report to Ray Tune
         if args.hpo:
-            session.report({"mean_accuracy": dev_acc / 3})
+            session.report(
+                {
+                    "sst_dev_acc": sst_dev_acc,
+                    "para_dev_acc": para_dev_acc,
+                    "sts_dev_acc": sts_dev_acc,
+                    "mean_dev_acc": dev_acc / 3,
+                }
+            )
 
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
@@ -692,6 +699,13 @@ if __name__ == "__main__":
 
     # Ray Tune
     if args.hpo:
+
+        def format_value(value):
+            # Format tensorboard dir
+            if isinstance(value, float):
+                return "{:.2e}".format(value)
+            return value
+
         import ray
         from ray import air, tune
         from ray.air import session
@@ -707,15 +721,17 @@ if __name__ == "__main__":
 
         # Scheduler: Async Hyperband
         scheduler = ASHAScheduler(
+            metric="mean_dev_acc",
+            mode="max",
             max_t=args.epochs,
-            grace_period=2,
+            grace_period=min(2, args.epochs),
             reduction_factor=2,
         )
 
         # Search Algorithm: Optuna
-        algo = OptunaSearch(metric="mean_accuracy", mode="max")
+        algo = OptunaSearch(metric=["sst_dev_acc", "para_dev_acc", "sts_dev_acc"], mode=["max"] * 3)
 
-        ray.init(num_cpu=4, log_to_driver=False)  # Don't print logs to console
+        ray.init(num_cpus=4, log_to_driver=False)  # Don't print logs to console
 
         tuner = tune.Tuner(
             tune.with_resources(
@@ -723,14 +739,12 @@ if __name__ == "__main__":
                 resources={"cpu": 4, "gpu": torch.cuda.device_count()},
             ),
             tune_config=tune.TuneConfig(
-                metric="mean_accuracy",
-                mode="max",
                 num_samples=10,  # Number of trials
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
                 max_concurrent_trials=1,  # Number of trials to run concurrently
-                trial_name_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={v}' for k, v in trial.evaluated_params.items())}",
+                trial_dirname_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={format_value(v)}' for k, v in trial.evaluated_params.items())}",
             ),
             run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
             param_space=config,
