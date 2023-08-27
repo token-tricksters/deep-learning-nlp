@@ -367,9 +367,9 @@ def train_multitask(args):
     optimizer_para = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
     optimizer_sst = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
 
-    scheduler_sts = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
-    scheduler_para = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
-    scheduler_sst = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
+    scheduler_sts = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_sts, "max", patience=2)
+    scheduler_para = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_para, "max", patience=2)
+    scheduler_sst = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_sst, "max", patience=2)
 
     if args.scheduler == "plateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
