@@ -344,7 +344,7 @@ def train_multitask(args):
     ctx = (
         nullcontext()
         if not args.use_gpu
-        else torch.amp.autocast(device_type="cuda", dtype=torch.float32)
+        else torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
     )
 
     if args.optimizer == "adamw":
