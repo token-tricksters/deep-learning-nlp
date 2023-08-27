@@ -617,7 +617,6 @@ def get_args():
     parser.add_argument("--sts_test", type=str, default="data/sts-test-student.csv")
 
     parser.add_argument("--seed", type=int, default=11711)
-    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument(
         "--option",
         type=str,
@@ -626,7 +625,6 @@ def get_args():
         default="pretrain",
     )
 
-    parser.add_argument("--samples_per_epoch", type=int, default=30000)
     parser.add_argument("--unfreeze_interval", type=int, default=None)
     parser.add_argument("--use_gpu", action="store_true")
 
@@ -649,11 +647,6 @@ def get_args():
 
     parser.add_argument("--logdir", type=str, default="logdir")
 
-    # hyper parameters
-    parser.add_argument("--batch_size", help="sst: 64 can fit a 12GB GPU", type=int, default=64)
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
-    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
-
     parser.add_argument(
         "--optimizer",
         type=str,
@@ -665,10 +658,23 @@ def get_args():
     parser.add_argument(
         "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
     )
+    parser.add_argument("--smoketest", action="store_true", help="Run a smoke test")
 
     args, _ = parser.parse_known_args()
+    # hyper parameters
+    parser.add_argument(
+        "--batch_size",
+        help="sst: 64 can fit a 12GB GPU",
+        type=int,
+        default=64 if not args.smoketest else 1,
+    )
+    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
+    parser.add_argument(
+        "--samples_per_epoch", type=int, default=30000 if not args.smoketest else 10
+    )
+    parser.add_argument("--epochs", type=int, default=5 if not args.smoketest else 1)
 
-    # TODO: Possibly change defaults based on optimizer
     parser.add_argument(
         "--lr",
         type=float,
@@ -685,7 +691,6 @@ def get_args():
     )
 
     parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
-    parser.add_argument("--smoketest", action="store_true", help="Run a smoke test")
 
     args = parser.parse_args()
 
