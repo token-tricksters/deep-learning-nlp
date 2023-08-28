@@ -33,3 +33,7 @@ pip install pre-commit
 # Make pip happy for triton
 pip install cmake
 pip install lit
+
+# For the hyperparameter tuning
+pip install "ray[tune]"
+pip install optuna
