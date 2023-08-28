@@ -759,7 +759,7 @@ if __name__ == "__main__":
         )
 
         results = tuner.fit()
-        best_result = results.get_best_result("mean_accuracy", "max")
+        best_result = results.get_best_result("mean_dev_acc", "max")
 
         separator = "=" * 60
         print(separator)
@@ -770,7 +770,7 @@ if __name__ == "__main__":
         }  # Filter out csv files
         print(pformat(filtered_vars))
         print("-" * 60)
-        print("Best mean_accuracy: ", best_result.metrics["mean_accuracy"])
+        print("Best mean_dev_acc: ", best_result.metrics["mean_dev_acc"])
     else:
         try:
             train_multitask(args)
