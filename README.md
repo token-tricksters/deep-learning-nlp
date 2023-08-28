@@ -50,29 +50,35 @@ the `logdir` directory. The best model is saved in the `models` directory.
 
 ## Methodology
 
+This section describes the methodology used in our experiments to extend the training of the multitask BERT model to the three tasks of paraphrase identification, sentiment classification, and semantic textual similarity.
+
+A pretrained BERT ([BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805)) model was used as the basis for our experiments. The model was fine-tuned on the three tasks using a multitask learning approach. The model was trained on the three tasks simultaneously, with a single shared BERT encoder and three separate task-specific classifiers.
+
 ### POS and NER Tag Embeddings
 
-In addition to the multi-task learning framework utilizing BERT, we extended our approach by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation. The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance on the tasks of Sentiment Analysis (SST), Paraphrase Detection, and Semantic Textual Similarity (STS).
+Based on [Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606), which showed that the addition of subword information to word embeddings can improve performance on downstream tasks, we extended our approach by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation. The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance on the tasks.
 
-#### Approach
-
-For each input sentence, we employed a POS tagger and a NER tagger to generate corresponding tags. These tags were then converted into embeddings and added to the existing word embeddings before feeding them into the BERT model. This extension aimed to provide the model with additional syntactic and semantic cues captured by the POS and NER tags.
-
-During training, the POS and NER tags were dynamically generated for each batch of data. To enhance training efficiency, we implemented a caching mechanism where the computed tag embeddings were stored and reused across multiple epochs.
+For each input sentence we used a POS tagger and a NER tagger to generate corresponding tags. These tags were then converted into embeddings and added to the existing word embeddings before being fed into the BERT model. During training, the POS and NER tags were dynamically generated for each batch of data. To increase training efficiency, we implemented a caching mechanism where the computed tag embeddings were stored and reused across multiple epochs.
 
 #### Experimental Results
 
-Contrary to our initial expectations, the inclusion of POS and NER tag embeddings did not yield the desired improvements across the three tasks. In fact, the experimental results indicated that the performance either remained stagnant or even slightly deteriorated compared to the baseline BERT model without tag embeddings.
+Contrary to our initial expectations, the inclusion of POS and NER tag embeddings did not yield the desired improvements across the three tasks. Experimental results indicated that the performance either remained stagnant or even slightly deteriorated compared to the baseline BERT model without tag embeddings.
 
 #### Impact on Training Process
 
-An additional observation was the notable increase in training time when incorporating POS and NER tag embeddings. This extended training time was attributed to the additional computational overhead required for generating and embedding the tags. Consequently, the introduction of POS and NER tags led to a trade-off between processing speed and potential performance gains.
+An additional observation was the notable increase in training time when incorporating POS and NER tag embeddings. This extended training time was attributed to the additional computational overhead required for generating and embedding the tags.
 
 #### Conclusion
 
-Although the integration of POS and NER tag embeddings appeared promising initially, our experiments revealed that this approach did not contribute to enhanced performance across Sentiment Analysis, Paraphrase Detection, and Semantic Textual Similarity tasks. Furthermore, the training process was noticeably slowed down due to the inclusion of tag embeddings.
+Although the integration of POS and NER tag embeddings initially seemed promising, our experiments showed that this approach did not contribute to performance across tasks. The training process was noticeably slowed down by the inclusion of tag embeddings.
 
-As a result, we concluded that, in this particular context, the benefits gained from the incorporation of POS and NER tags were not substantial enough to justify the extended training time. Future research might explore alternative ways to effectively utilize linguistic features while minimizing the associated computational overhead.
+As a result, we concluded that the benefits of incorporating POS and NER tags were not substantial enough to justify the extended training time. Future research could explore alternative ways of effectively exploiting linguistic features while minimising the associated computational overhead.
+
+One possible explanation for the lack of performance improvements could be that the BERT model already encodes some syntactic information in its word embeddings. [A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf) showed that some syntactic information is already encoded in the word embeddings of pretrained BERT models, which could explain why the inclusion of POS and NER tags did not lead to performance improvements.
+
+### Sophia
+
+<3
 
 ## Experiments
 
@@ -126,7 +132,7 @@ allows for 5 degrees of similarity.
 ## Contributing
 
 The project involves the creation of software and documentation to be released under an open source licence.
-This licence is the Apache License 2.0, which is a permissive licence that allows the use of the software for
+This license is the Apache License 2.0, which is a permissive licence that allows the use of the software for
 commercial purposes. The licence is also compatible with the licences of the libraries used in the project.
 
 To contribute to the project, please follow the following steps:
