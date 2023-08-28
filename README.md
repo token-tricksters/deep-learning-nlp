@@ -50,6 +50,30 @@ the `logdir` directory. The best model is saved in the `models` directory.
 
 ## Methodology
 
+### POS and NER Tag Embeddings
+
+In addition to the multi-task learning framework utilizing BERT, we extended our approach by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation. The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance on the tasks of Sentiment Analysis (SST), Paraphrase Detection, and Semantic Textual Similarity (STS).
+
+#### Approach
+
+For each input sentence, we employed a POS tagger and a NER tagger to generate corresponding tags. These tags were then converted into embeddings and added to the existing word embeddings before feeding them into the BERT model. This extension aimed to provide the model with additional syntactic and semantic cues captured by the POS and NER tags.
+
+During training, the POS and NER tags were dynamically generated for each batch of data. To enhance training efficiency, we implemented a caching mechanism where the computed tag embeddings were stored and reused across multiple epochs.
+
+#### Experimental Results
+
+Contrary to our initial expectations, the inclusion of POS and NER tag embeddings did not yield the desired improvements across the three tasks. In fact, the experimental results indicated that the performance either remained stagnant or even slightly deteriorated compared to the baseline BERT model without tag embeddings.
+
+#### Impact on Training Process
+
+An additional observation was the notable increase in training time when incorporating POS and NER tag embeddings. This extended training time was attributed to the additional computational overhead required for generating and embedding the tags. Consequently, the introduction of POS and NER tags led to a trade-off between processing speed and potential performance gains.
+
+#### Conclusion
+
+Although the integration of POS and NER tag embeddings appeared promising initially, our experiments revealed that this approach did not contribute to enhanced performance across Sentiment Analysis, Paraphrase Detection, and Semantic Textual Similarity tasks. Furthermore, the training process was noticeably slowed down due to the inclusion of tag embeddings.
+
+As a result, we concluded that, in this particular context, the benefits gained from the incorporation of POS and NER tags were not substantial enough to justify the extended training time. Future research might explore alternative ways to effectively utilize linguistic features while minimizing the associated computational overhead.
+
 ## Experiments
 
 ## Results
