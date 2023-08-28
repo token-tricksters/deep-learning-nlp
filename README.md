@@ -78,9 +78,23 @@ One possible explanation for the lack of performance improvements could be that 
 
 ### Sophia
 
-<3
+We implemented the Sophia (**S**econd-**o**rder Cli**p**ped Stoc**h**astic Opt**i**miz**a**tion) optimizer completly from scratch, which is a second-order optimizer for language model pre-training. The paper promises convergence twice as fast as AdamW and better generalisation performance. It uses a light weight estimate of the diagonal of the Hessian matrix to approximate the curvature of the loss function. It also uses clipping to control the worst-case update size. By only updating the Hessian estimate every few iterations, the overhead is negligible.
 
-### Layer Unfreeze
+The optimizer was introduced recently in the paper [Sophia: A Scalable Stochastic Second-order Optimizer for Language Model Pre-training](https://arxiv.org/abs/2305.14342).
+
+#### Implementation
+
+The paper describes the optimizer in detail, but does not provide any usable code. We implemented the optimizer from scratch in PyTorch. The optimizer is implemented in the [`optimizer.py`](optimizer.py) file and can be used in the multitask classifier by setting the `--optimizer` parameter.
+
+There are two ways of estimating the Hessian. The first option is to use the Gauss-Newton-Bartlett approximation, which is computed using an average over the minibatch gradients. However, this estimator requires the existence of a multi-class classification problem from which to sample. This is not the case for some of our tasks, e.g. STS, which is a regression task. The estimator is still implemented as `SophiaG`.
+
+The second option is to use Hutchinson's unbiased estimator of the Hessian diagonal by sampling from a spherical Gaussian distribution. This estimator is implemented as `SophiaH`. This estimator can be used for all tasks. It requires a Hessian vector product, which is implemented in most modern deep learning frameworks, including PyTorch.
+
+#### Convergence
+
+While the implementation of this novel optimizer was a challenge, the results were not as promised. The optimizer did not converge faster than AdamW, and the performance was comparable. This could be due to the fact that the optimizer was designed for pre-training language models, which is a different task to ours.
+
+A more recent paper studing different training algorithms for transformer-based language models ([No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf)) comes to the conclusion that the training algorithm gains vanish with a fully decayed learning rate. They show performance being about the same as the baseline (AdamW), which is what we observed.
 
 ### Synthetic Data
 
@@ -88,15 +102,17 @@ One possible explanation for the lack of performance improvements could be that 
 
 ### Output Attention Layer
 
+### Layer Unfreeze
+
 ### Mixture of Experts
 
 ### Task Classifiers
 
-### 
+### Automatic Mixed Precision
 
 ## Results
 
-Our multitask model achieves the following performance on :
+Our multitask model achieves the following performance on:
 
 ### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
 
