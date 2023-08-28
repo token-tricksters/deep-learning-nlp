@@ -208,6 +208,10 @@ def load_model(filepath, model, optimizer, use_gpu):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
+    # Ray: Need to convert args from a dict to a Namespace
+    if isinstance(args, dict):
+        args = SimpleNamespace(**args)
+
     train_all_datasets = True
     n_datasets = args.sst + args.sts + args.para
     if args.sst or args.sts or args.para:
@@ -215,7 +219,6 @@ def train_multitask(args):
     if n_datasets == 0:
         n_datasets = 3
 
-    device = torch.device("cuda") if args.use_gpu else torch.device("cpu")
     # Load data
     # Create the data and its corresponding datasets and dataloader
     sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(
@@ -236,57 +239,69 @@ def train_multitask(args):
     sst_train_data = SentenceClassificationDataset(
         sst_train_data, args, override_length=args.samples_per_epoch
     )
-    sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
+    sst_dev_data = SentenceClassificationDataset(
+        sst_dev_data, args, override_length=10 if args.smoketest else None
+    )
 
     sst_train_dataloader = DataLoader(
         sst_train_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_train_data.collate_fn,
+        num_workers=2,
     )
     sst_dev_dataloader = DataLoader(
         sst_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sst_dev_data.collate_fn,
+        num_workers=2,
     )
 
     # if train_all_datasets or args.para:
     para_train_data = SentencePairDataset(
         para_train_data, args, override_length=args.samples_per_epoch
     )
-    para_dev_data = SentencePairDataset(para_dev_data, args)
+    para_dev_data = SentencePairDataset(
+        para_dev_data, args, override_length=10 if args.smoketest else None
+    )
 
     para_train_dataloader = DataLoader(
         para_train_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_train_data.collate_fn,
+        num_workers=2,
     )
     para_dev_dataloader = DataLoader(
         para_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=para_dev_data.collate_fn,
+        num_workers=2,
     )
 
     # if train_all_datasets or args.sts:
     sts_train_data = SentencePairDataset(
         sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch
     )
-    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
+    sts_dev_data = SentencePairDataset(
+        sts_dev_data, args, isRegression=True, override_length=10 if args.smoketest else None
+    )
 
     sts_train_dataloader = DataLoader(
         sts_train_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_train_data.collate_fn,
+        num_workers=2,
     )
     sts_dev_dataloader = DataLoader(
         sts_dev_data,
         shuffle=False,
         batch_size=args.batch_size,
         collate_fn=sts_dev_data.collate_fn,
+        num_workers=2,
     )
 
     total_num_batches += math.ceil(args.samples_per_epoch / args.batch_size)
@@ -337,6 +352,14 @@ def train_multitask(args):
     print(separator)
 
     model = MultitaskBERT(config)
+
+    device = torch.device("cpu")
+    if torch.cuda.is_available() and args.use_gpu:
+        device = torch.device("cuda")
+        if torch.cuda.device_count() > 1:
+            print(f"Using {torch.cuda.device_count()} GPUs", file=sys.stderr)
+            model = nn.DataParallel(model)
+
     model = model.to(device)
 
     lr = args.lr
@@ -543,6 +566,18 @@ def train_multitask(args):
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
 
+        # Report to Ray Tune
+        if args.hpo:
+            session.report(
+                {
+                    "sst_dev_acc": sst_dev_acc,
+                    "para_dev_acc": para_dev_acc,
+                    "sts_dev_acc": sts_dev_acc,
+                    "mean_dev_acc": dev_acc / 3,
+                    "mean_train_acc": train_acc / 3,
+                }
+            )
+
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
 
@@ -583,7 +618,6 @@ def get_args():
     parser.add_argument("--sts_test", type=str, default="data/sts-test-student.csv")
 
     parser.add_argument("--seed", type=int, default=11711)
-    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument(
         "--option",
         type=str,
@@ -592,7 +626,6 @@ def get_args():
         default="pretrain",
     )
 
-    parser.add_argument("--samples_per_epoch", type=int, default=30000)
     parser.add_argument("--unfreeze_interval", type=int, default=None)
     parser.add_argument("--use_gpu", action="store_true")
 
@@ -615,11 +648,6 @@ def get_args():
 
     parser.add_argument("--logdir", type=str, default="logdir")
 
-    # hyper parameters
-    parser.add_argument("--batch_size", help="sst: 64 can fit a 12GB GPU", type=int, default=64)
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
-    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
-
     parser.add_argument(
         "--optimizer",
         type=str,
@@ -631,10 +659,23 @@ def get_args():
     parser.add_argument(
         "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
     )
+    parser.add_argument("--smoketest", action="store_true", help="Run a smoke test")
 
     args, _ = parser.parse_known_args()
+    # hyper parameters
+    parser.add_argument(
+        "--batch_size",
+        help="sst: 64 can fit a 12GB GPU",
+        type=int,
+        default=64 if not args.smoketest else 1,
+    )
+    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
+    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
+    parser.add_argument(
+        "--samples_per_epoch", type=int, default=30000 if not args.smoketest else 10
+    )
+    parser.add_argument("--epochs", type=int, default=5 if not args.smoketest else 1)
 
-    # TODO: Possibly change defaults based on optimizer
     parser.add_argument(
         "--lr",
         type=float,
@@ -650,17 +691,91 @@ def get_args():
         "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "none")
     )
 
+    parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
+    parser.add_argument("--hpo_trials", type=int, default=20, help="Number of trials for HPO")
+
     args = parser.parse_args()
 
     return args
 
 
 if __name__ == "__main__":
-    try:
-        args = get_args()
-        args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
-        seed_everything(args.seed)  # fix the seed for reproducibility
-        train_multitask(args)
-        test_model(args)
-    except KeyboardInterrupt:
-        print("Received KeyboardInterrupt...")
+    args = get_args()
+    args.filepath = f"{args.option}-{args.epochs}-{args.lr}-{args.optimizer}-{args.scheduler}-multitask.pt"  # save path
+    seed_everything(args.seed)  # fix the seed for reproducibility
+
+    # Ray Tune
+    if args.hpo:
+
+        def format_value(value):
+            # Format tensorboard dir
+            if isinstance(value, float):
+                return "{:.2e}".format(value)
+            return value
+
+        import ray
+        from ray import air, tune
+        from ray.air import session
+        from ray.tune.schedulers import ASHAScheduler
+        from ray.tune.search.optuna import OptunaSearch
+
+        config = vars(args)
+        tune_config = {
+            "lr": tune.loguniform(1e-5, 3e-4),
+            "weight_decay": tune.choice([0.01, 0.001, 0.0001, 0]),
+            "scheduler": tune.choice(["plateau", "cosine", "none"]),
+            "hidden_dropout_prob": tune.choice([0.1, 0.2, 0.3, 0.4, 0.5]),
+        }
+        config.update(tune_config)
+
+        # Scheduler: Async Hyperband
+        scheduler = ASHAScheduler(
+            metric="mean_dev_acc",
+            mode="max",
+            max_t=args.epochs,
+            grace_period=min(2, args.epochs),
+            reduction_factor=2,
+        )
+
+        # Search Algorithm: Optuna
+        algo = OptunaSearch(metric=["sst_dev_acc", "para_dev_acc", "sts_dev_acc"], mode=["max"] * 3)
+
+        ray.init(num_cpus=4, log_to_driver=False)  # Don't print logs to console
+
+        tuner = tune.Tuner(
+            tune.with_resources(
+                tune.with_parameters(train_multitask),
+                resources={"cpu": 4, "gpu": torch.cuda.device_count()},
+            ),
+            tune_config=tune.TuneConfig(
+                num_samples=args.hpo_trials,  # Number of trials
+                scheduler=scheduler,
+                search_alg=algo,
+                chdir_to_trial_dir=False,  # Still access local files
+                max_concurrent_trials=1,  # Number of trials to run concurrently
+                trial_dirname_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={format_value(v)}' for k, v in trial.evaluated_params.items())}",
+            ),
+            run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
+            param_space=config,
+        )
+
+        results = tuner.fit()
+        best_result = results.get_best_result("mean_dev_acc", "max")
+
+        separator = "=" * 60
+        print(separator)
+        print("    Best Multitask BERT Model Configuration")
+        print(separator)
+        filtered_vars = {
+            k: v for k, v in best_result.config.items() if "csv" not in str(v)
+        }  # Filter out csv files
+        print(pformat(filtered_vars))
+        print("-" * 60)
+        print("Best mean_dev_acc: ", best_result.metrics["mean_dev_acc"])
+    else:
+        try:
+            train_multitask(args)
+            if not args.smoketest:
+                test_model(args)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt.")
