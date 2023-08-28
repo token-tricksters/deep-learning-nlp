@@ -99,8 +99,8 @@ class MultitaskBERT(nn.Module):
         # (e.g., by adding other layers).
 
         result = self.bert(input_ids, attention_mask, self.use_additional_input)
-        attention_result = self.attention_layer(result["last_hidden_state"])
-        return attention_result
+        # attention_result = self.attention_layer(result["last_hidden_state"])
+        return result["pooler_output"]
 
     def predict_sentiment(self, input_ids, attention_mask):
         """Given a batch of sentences, outputs logits for classifying sentiment.
