@@ -692,6 +692,7 @@ def get_args():
     )
 
     parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
+    parser.add_argument("--hpo_trials", type=int, default=20, help="Number of trials for HPO")
 
     args = parser.parse_args()
 
@@ -747,7 +748,7 @@ if __name__ == "__main__":
                 resources={"cpu": 4, "gpu": torch.cuda.device_count()},
             ),
             tune_config=tune.TuneConfig(
-                num_samples=20,  # Number of trials
+                num_samples=args.hpo_trials,  # Number of trials
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
