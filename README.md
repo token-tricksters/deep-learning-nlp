@@ -60,6 +60,12 @@ Based on [Enriching Word Vectors with Subword Information](https://arxiv.org/abs
 
 For each input sentence we used a POS tagger and a NER tagger to generate corresponding tags. These tags were then converted into embeddings and added to the existing word embeddings before being fed into the BERT model. During training, the POS and NER tags were dynamically generated for each batch of data. To increase training efficiency, we implemented a caching mechanism where the computed tag embeddings were stored and reused across multiple epochs.
 
+#### Implementation
+
+For the efficient and accurate tagging of POS and NER, we used the [spaCy](https://spacy.io/) library. spaCy is a popular NLP library that offers pre-trained models for various NLP tasks, including POS and NER tagging.
+
+The tagging process occurs during data preprocessing, where each sentence is tokenized into individual words. The spaCy pipeline is then invoked to annotate each word with its corresponding POS tag and NER label. The resulting tags and labels are subsequently converted into embeddings that are seamlessly integrated into the existing word embeddings.
+
 #### Experimental Results
 
 Contrary to our initial expectations, the inclusion of POS and NER tag embeddings did not yield the desired improvements across the three tasks. Experimental results indicated that the performance either remained stagnant or even slightly deteriorated compared to the baseline BERT model without tag embeddings.
