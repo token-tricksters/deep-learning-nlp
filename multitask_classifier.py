@@ -12,7 +12,6 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 import torch.nn.functional as F
-from pytorch_optimizer import SophiaH
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -26,7 +25,7 @@ from datasets import (
     load_multitask_data,
 )
 from evaluation import model_eval_multitask, test_model_multitask
-from optimizer import AdamW
+from optimizer import AdamW, SophiaH
 
 TQDM_DISABLE = False
 
@@ -357,7 +356,7 @@ def train_multitask(args):
             betas=(0.985, 0.99),
             weight_decay=args.weight_decay,
             eps=1e-12,
-            p=args.rho,
+            rho=args.rho,
             update_period=hess_interval,
         )
     else:

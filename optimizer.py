@@ -283,7 +283,7 @@ class SophiaH(Optimizer):
 
                 # Compute < grad, u >
                 # Differentiate < grad, u > w.r.t. p
-                hvp = torch.autograd.grad(p.grad, p, grad_outputs=u)[0]
+                hvp = torch.autograd.grad(p.grad, p, grad_outputs=u, retain_graph=True)[0]
 
                 # u ⊙ hvp
                 state["hessian"].mul_(beta2).addcmul_(u, hvp, value=1 - beta2)

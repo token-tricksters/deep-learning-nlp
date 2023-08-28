@@ -33,5 +33,3 @@ pip install pre-commit
 # Make pip happy for triton
 pip install cmake
 pip install lit
-
-pip install pytorch_optimizer
