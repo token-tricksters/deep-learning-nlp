@@ -4,6 +4,7 @@ import os
 import random
 import subprocess
 import sys
+import warnings
 from contextlib import nullcontext
 from datetime import datetime
 from pprint import pformat
@@ -28,6 +29,9 @@ from evaluation import model_eval_multitask, test_model_multitask
 from optimizer import AdamW, SophiaH
 
 TQDM_DISABLE = False
+
+# Silence SophiaH backward warning.
+warnings.filterwarnings("ignore", category=UserWarning, module="torch.autograd")
 
 
 # fix the random seed
