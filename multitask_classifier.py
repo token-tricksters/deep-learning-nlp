@@ -77,7 +77,9 @@ class MultitaskBERT(nn.Module):
 
         self.use_additional_input = config.additional_input
 
-        self.attention_layer = AttentionLayer(config.hidden_size)
+        self.attention_layer_para = AttentionLayer(config.hidden_size)
+        self.attention_layer_sst = AttentionLayer(config.hidden_size)
+        self.attention_layer_sts = AttentionLayer(config.hidden_size)
 
         # SENTIMENT
         self.sentiment_linear = torch.nn.Linear(config.hidden_size, config.hidden_size)
@@ -100,7 +102,7 @@ class MultitaskBERT(nn.Module):
 
         result = self.bert(input_ids, attention_mask, self.use_additional_input)
         # attention_result = self.attention_layer(result["last_hidden_state"])
-        return result["pooler_output"]
+        return result["last_hidden_state"]
 
     def predict_sentiment(self, input_ids, attention_mask):
         """Given a batch of sentences, outputs logits for classifying sentiment.
@@ -108,7 +110,7 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         """
-        bert_embedding = self.forward(input_ids, attention_mask)
+        bert_embedding = self.attention_layer_sst(self.forward(input_ids, attention_mask))
         logits = F.relu(self.sentiment_linear(bert_embedding))
         logits = F.relu(self.sentiment_linear1(logits))
         logits = F.relu(self.sentiment_linear2(logits))
@@ -121,8 +123,8 @@ class MultitaskBERT(nn.Module):
         """
         Given a batch of pairs of sentences, outputs logits for predicting whether they are paraphrases.
         """
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.attention_layer_para(self.forward(input_ids_1, attention_mask_1))
+        bert_embeddings_2 = self.attention_layer_para(self.forward(input_ids_2, attention_mask_2))
 
         combined_bert_embeddings_1 = self.paraphrase_linear(bert_embeddings_1)
         combined_bert_embeddings_2 = self.paraphrase_linear(bert_embeddings_2)
@@ -154,8 +156,8 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         """
 
-        bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
-        bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
+        bert_embeddings_1 = self.attention_layer_sts(self.forward(input_ids_1, attention_mask_1))
+        bert_embeddings_2 = self.attention_layer_sts(self.forward(input_ids_2, attention_mask_2))
 
         diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
         return diff * 5
