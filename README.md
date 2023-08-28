@@ -125,7 +125,9 @@ allows for 5 degrees of similarity.
 
 ## Contributing
 
-> 📋 Pick a licence.
+The project involves the creation of software and documentation to be released under an open source licence.
+This licence is the Apache License 2.0, which is a permissive licence that allows the use of the software for
+commercial purposes. The licence is also compatible with the licences of the libraries used in the project.
 
 To contribute to the project, please follow the following steps:
 
