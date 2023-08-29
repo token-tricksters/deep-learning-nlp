@@ -390,7 +390,7 @@ def train_multitask(args):
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
     if args.scheduler == "plateau":
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max")
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
     elif args.scheduler == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 1, 1)
     else:
@@ -565,6 +565,8 @@ def train_multitask(args):
             best_dev_acc_para = para_dev_acc
             best_dev_acc_sst = sst_dev_acc
             best_dev_acc_sts = sts_dev_acc
+            if args.hpo:
+                args.filepath = f"ray_checkpoints/{session.get_trial_name()}-{epoch}.pt"
             save_model(model, optimizer, args, config, args.filepath)
         train_acc = sst_train_acc + para_train_acc + sts_train_acc
         dev_acc = sst_dev_acc + para_dev_acc + sts_dev_acc
@@ -675,9 +677,9 @@ def get_args():
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
     parser.add_argument(
-        "--samples_per_epoch", type=int, default=30000 if not args.smoketest else 10
+        "--samples_per_epoch", type=int, default=10000 if not args.smoketest else 10
     )
-    parser.add_argument("--epochs", type=int, default=5 if not args.smoketest else 1)
+    parser.add_argument("--epochs", type=int, default=10 if not args.smoketest else 1)
 
     parser.add_argument(
         "--lr",
@@ -724,10 +726,9 @@ if __name__ == "__main__":
 
         config = vars(args)
         tune_config = {
-            "lr": tune.loguniform(1e-5, 3e-4),
-            "weight_decay": tune.choice([0.01, 0.001, 0.0001, 0]),
-            "scheduler": tune.choice(["plateau", "cosine", "none"]),
-            "hidden_dropout_prob": tune.choice([0.1, 0.2, 0.3, 0.4, 0.5]),
+            "weight_decay": tune.choice([0.1, 0.01, 0.001, 0.0001, 0]),
+            "hidden_dropout_prob": tune.choice([0.0, 0.1, 0.2, 0.3, 0.4, 0.5]),
+            "clip": tune.loguniform(0.01, 10),
         }
         config.update(tune_config)
 
@@ -755,7 +756,7 @@ if __name__ == "__main__":
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
-                max_concurrent_trials=1,  # Number of trials to run concurrently
+                max_concurrent_trials=2,  # Number of trials to run concurrently
                 trial_dirname_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={format_value(v)}' for k, v in trial.evaluated_params.items())}",
             ),
             run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
@@ -770,11 +771,11 @@ if __name__ == "__main__":
         print("    Best Multitask BERT Model Configuration")
         print(separator)
         filtered_vars = {
-            k: v for k, v in best_result.config.items() if "csv" not in str(v)
+            k: v for k, v in best_result.config.items() if "." not in str(v)
         }  # Filter out csv files
         print(pformat(filtered_vars))
         print("-" * 60)
-        print("Best mean_dev_acc: ", best_result.metrics["mean_dev_acc"])
+        print("Best mean_dev_acc: ", best_result.metrics.get("mean_dev_acc", "N/A"))
     else:
         try:
             train_multitask(args)
