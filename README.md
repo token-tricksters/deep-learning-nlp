@@ -187,9 +187,11 @@ allows for 5 degrees of similarity.
 
 ## Contributors
 
-| Lars Kaesberg | Niklas Bauer | Constantin Dalinghaus | Sebastian Kampen |
-|---------------|--------------|-----------------------|------------------|
-|               |              |                       |                  |
+| Lars Kaesberg   | Niklas Bauer | Constantin Dalinghaus | Sebastian Kampen |
+|-----------------|--------------|-----------------------|------------------|
+| Tagging         | Sophia       | Synthetic Data        |                  |
+| Layer Unfreeze  | HPO          | Mixture of Experts    |                  |
+| Classifier Model| Repository   |                       |                  |
 
 ## Contributing
 
