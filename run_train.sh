@@ -3,10 +3,10 @@
 #SBATCH -t 12:00:00                  # estimated time # TODO: adapt to your needs
 #SBATCH -p grete:shared              # the partition you are training on (i.e., which nodes), for nodes see sinfo -p grete:shared --format=%N,%G
 #SBATCH -G A100:2                    # take 1 GPU, see https://www.hlrn.de/doc/display/PUB/GPU+Usage for more options
-#SBATCH --mem-per-gpu=5G             # setting the right constraints for the splitted gpu partitions
+#SBATCH --mem-per-gpu=8G             # setting the right constraints for the splitted gpu partitions
 #SBATCH --nodes=1                    # total number of nodes
 #SBATCH --ntasks=1                   # total number of tasks
-#SBATCH --cpus-per-task=8            # number cores per task
+#SBATCH --cpus-per-task=16           # number cores per task
 #SBATCH --mail-type=END,FAIL         # send mail when job begins and ends
 #SBATCH --mail-user=l.kaesberg@stud.uni-goettingen.de   
 #SBATCH --output=./slurm_files/slurm-%x-%j.out     # where to write output, %x give job name, %j names job id

@@ -561,6 +561,7 @@ def train_multitask(args):
             para_dev_acc > best_dev_acc_para
             and sst_dev_acc > best_dev_acc_sst
             and sts_dev_acc > best_dev_acc_sts
+            and epoch >= args.epochs - 2
         ):
             best_dev_acc_para = para_dev_acc
             best_dev_acc_sst = sst_dev_acc
@@ -744,12 +745,12 @@ if __name__ == "__main__":
         # Search Algorithm: Optuna
         algo = OptunaSearch(metric=["sst_dev_acc", "para_dev_acc", "sts_dev_acc"], mode=["max"] * 3)
 
-        ray.init(num_cpus=8, log_to_driver=False)  # Don't print logs to console
+        ray.init(num_cpus=16, log_to_driver=False)  # Don't print logs to console
 
         tuner = tune.Tuner(
             tune.with_resources(
                 tune.with_parameters(train_multitask),
-                resources={"cpu": 4, "gpu": 1},
+                resources={"cpu": 8, "gpu": 1 if args.use_gpu else 0},
             ),
             tune_config=tune.TuneConfig(
                 num_samples=args.hpo_trials,  # Number of trials
