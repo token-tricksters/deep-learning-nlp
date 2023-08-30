@@ -772,7 +772,9 @@ if __name__ == "__main__":
         print("    Best Multitask BERT Model Configuration")
         print(separator)
         filtered_vars = {
-            k: v for k, v in best_result.config.items() if "." not in str(v)
+            k: v
+            for k, v in best_result.config.items()
+            if "csv" not in str(v) and "pt" not in str(v)
         }  # Filter out csv files
         print(pformat(filtered_vars))
         print("-" * 60)
