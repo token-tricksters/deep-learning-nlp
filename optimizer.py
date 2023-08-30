@@ -228,10 +228,11 @@ class SophiaH(Optimizer):
         self,
         params: Iterable[torch.nn.parameter.Parameter],
         lr: float = 1e-4,
-        betas: Tuple[float, float] = (0.965, 0.99),
-        rho: float = 0.04,
-        weight_decay: float = 0.1,
-        eps: float = 1e-15,
+        betas: Tuple[float, float] = (0.96, 0.99),
+        rho: float = 1e-2,
+        weight_decay: float = 0.0,
+        eps: float = 1e-12,
+        update_period: int = 10,
     ):
         if lr < 0.0:
             raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
@@ -251,16 +252,24 @@ class SophiaH(Optimizer):
             )
         if not 0.0 <= eps:
             raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
+        if not 0 < update_period:
+            raise ValueError(
+                "Invalid update_period value: {} - should be > 0".format(update_period)
+            )
+
+        self.update_period = update_period
+
         defaults = dict(
             lr=lr,
             betas=betas,
             rho=rho,
             weight_decay=weight_decay,
             eps=eps,
+            update_period=update_period,
         )
         super(SophiaH, self).__init__(params, defaults)
 
-    def update_hessian(self):
+    def _update_hessian(self):
         for group in self.param_groups:
             _, beta2 = group["betas"]
 
@@ -269,29 +278,34 @@ class SophiaH(Optimizer):
                     continue
                 state = self.state[p]
 
-                gradient = p.grad.clone().detach().requires_grad_(True)
-
                 # draw u from N(0, I)
-                u = torch.randn_like(gradient)
+                u = torch.randn_like(p.grad)
 
                 # Compute < grad, u >
-                gu = torch.matmul(gradient.view(-1), u.view(-1))
-
-                # Differentiate < grad, u > wrt to the parameters
-                hvp = torch.autograd.grad(gu, gradient, retain_graph=True)[0]
+                # Differentiate < grad, u > w.r.t. p
+                hvp = torch.autograd.grad(p.grad, p, grad_outputs=u, retain_graph=True)[0]
 
                 # u ⊙ hvp
                 state["hessian"].mul_(beta2).addcmul_(u, hvp, value=1 - beta2)
 
     @torch.no_grad()
     def step(self, closure: Callable = None):
+        step = self.param_groups[0].get("step", 1)
         loss = None
 
         if closure is not None:
             with torch.enable_grad():
                 loss = closure()
 
+        if step % self.update_period == 0:
+            self._update_hessian()
+
         for group in self.param_groups:
+            if "step" in group:
+                group["step"] += 1
+            else:
+                group["step"] = 1
+
             for p in group["params"]:
                 grad = p.grad
 
@@ -330,7 +344,7 @@ class SophiaH(Optimizer):
 
                 # 3 - Decay the hessian running average coefficient
                 # Clipping the hessian.
-                ratio = (exp_avg / (rho * hess + eps)).clamp(-1, 1)
+                ratio = (exp_avg / torch.clip(hess, min=eps)).clamp(-rho, rho)
                 p.data.add_(ratio, alpha=-lr)
 
         return loss

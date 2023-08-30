@@ -213,28 +213,31 @@ class BertModel(BertPreTrainedModel):
             for sequence_id in input_ids:
                 sequence_id_tup = tuple(sequence_id.tolist())
                 if sequence_id_tup in self.input_cache:
-                    sequence_pos_indices, sequence_ner_indices = self.input_cache[sequence_id_tup]
+                    pos_tags, ner_tags = self.input_cache[sequence_id_tup]
                 else:
                     # Convert input_ids to tokens using the BERT tokenizer
                     tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
 
                     # Convert tokens to strings
-                    token_strings = [token if token != "[PAD]" else " " for token in tokens]
-
-                    # Create a Doc object from the list of tokens
-                    doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
-
-                    # Create a Doc object from the list of tokens and process through the entire pipeline
-                    doc = spacy.tokens.Doc(self.nlp.vocab, words=token_strings)
-                    self.nlp(doc)
-                    sequence_pos_indices = [self.pos_tag_vocab.get(tag.tag_, 0) for tag in doc]
-                    sequence_ner_indices = [self.ner_tag_vocab.get(tag.ent_type_, 0) for tag in doc]
+                    token_strings = [
+                        token for token in tokens if token not in ["[PAD]", "[CLS]", "[SEP]"]
+                    ]
+                    input_string = self.tokenizer.convert_tokens_to_string(token_strings)
+                    tokenized = self.nlp(input_string)
+                    pos_tags = [0] * len(tokens)
+                    ner_tags = [0] * len(tokens)
+                    counter = -1
+                    for i in range(len(token_strings)):
+                        if not token_strings[i].startswith("##"):
+                            counter += 1
+                        pos_tags[i + 1] = self.pos_tag_vocab.get(tokenized[counter].tag_, 0)
+                        ner_tags[i + 1] = self.ner_tag_vocab.get(tokenized[counter].ent_type_, 0)
 
                     # Cache the input
-                    self.input_cache[sequence_id_tup] = (sequence_pos_indices, sequence_ner_indices)
+                    self.input_cache[sequence_id_tup] = (pos_tags, ner_tags)
 
-                all_pos_tags.append(sequence_pos_indices)
-                all_ner_tags.append(sequence_ner_indices)
+                all_pos_tags.append(pos_tags)
+                all_ner_tags.append(ner_tags)
 
             pos_tags_ids = torch.tensor(all_pos_tags, dtype=torch.long, device=input_ids.device)
             ner_tags_ids = torch.tensor(all_ner_tags, dtype=torch.long, device=input_ids.device)
