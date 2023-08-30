@@ -661,7 +661,7 @@ def get_args():
         default="adamw",
     )
     parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
-    parser.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument("--weight_decay", type=float, default=0.05)
     parser.add_argument(
         "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
     )
@@ -675,8 +675,8 @@ def get_args():
         type=int,
         default=64 if not args.smoketest else 1,
     )
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
-    parser.add_argument("--clip", type=float, default=1.0, help="value used gradient clipping")
+    parser.add_argument("--hidden_dropout_prob", type=float, default=0.4)
+    parser.add_argument("--clip", type=float, default=0.25, help="value used gradient clipping")
     parser.add_argument(
         "--samples_per_epoch", type=int, default=10000 if not args.smoketest else 10
     )
@@ -686,7 +686,7 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=1e-5 * (1 / args.rho if args.optimizer == "sophiah" else 1)
+        default=8e-5 * (1 / args.rho if args.optimizer == "sophiah" else 1)
         if args.option == "finetune"
         else 1e-3 * (1 / args.rho if args.optimizer == "sophiah" else 1),
     )
