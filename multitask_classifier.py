@@ -527,7 +527,7 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward(create_graph=True if args.optimizer == "sophiah" else False)
+            full_loss.backward(create_graph=True if "sophiah" in args.optimizer else False)
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -697,9 +697,9 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=8e-5 * (1 / args.rho if args.optimizer == "sophiah" else 1)
+        default=8e-5 * (1 / args.rho if "sophiah" in args.optimizer else 1)
         if args.option == "finetune"
-        else 1e-3 * (1 / args.rho if args.optimizer == "sophiah" else 1),
+        else 1e-3 * (1 / args.rho if "sophiah" in args.optimizer else 1),
     )
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--tensorboard_subfolder", type=str, default=None)
@@ -740,7 +740,7 @@ if __name__ == "__main__":
         tune_config = {
             "lr": tune.loguniform(1e-5, 1e-1),
             "rho": tune.loguniform(1e-3, 1e-1),
-            "hess_interval": tune.choice([1, 2, 5, 10, 20, 50]),
+            "hess_interval": tune.choice([5, 10, 20, 50]),
         }
         config.update(tune_config)
 
