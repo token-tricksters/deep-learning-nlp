@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=train-bert-token-tricksters
-#SBATCH -t 12:00:00                  # estimated time # TODO: adapt to your needs
+#SBATCH -t 6:00:00                  # estimated time # TODO: adapt to your needs
 #SBATCH -p grete:shared              # the partition you are training on (i.e., which nodes), for nodes see sinfo -p grete:shared --format=%N,%G
-#SBATCH -G A100:2                    # take 1 GPU, see https://www.hlrn.de/doc/display/PUB/GPU+Usage for more options
+#SBATCH -G A100:1                    # take 1 GPU, see https://www.hlrn.de/doc/display/PUB/GPU+Usage for more options
 #SBATCH --mem-per-gpu=8G             # setting the right constraints for the splitted gpu partitions
 #SBATCH --nodes=1                    # total number of nodes
 #SBATCH --ntasks=1                   # total number of tasks

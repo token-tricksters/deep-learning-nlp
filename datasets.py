@@ -8,6 +8,7 @@ to train your model.
 import csv
 import platform
 import random
+from pprint import pprint
 
 import torch
 from torch.utils.data import Dataset
@@ -327,13 +328,16 @@ def load_multitask_data(
                 sentiment_data.append((sent, sent_id))
     else:
         with open(sentiment_filename, "r", encoding="utf-8") as fp:
-            for record in csv.DictReader(fp, delimiter="\t"):
-                sent = record["sentence"].lower().strip()
-                sent_id = record["id"].lower().strip()
-                label = int(record["sentiment"].strip())
-                if label not in num_labels:
-                    num_labels[label] = len(num_labels)
-                sentiment_data.append((sent, label, sent_id))
+            for record in csv.DictReader(fp, delimiter="\t", quoting=csv.QUOTE_NONE):
+                try:
+                    sent = record["sentence"].lower().strip()
+                    sent_id = record["id"].lower().strip()
+                    label = int(record["sentiment"].strip())
+                    if label not in num_labels:
+                        num_labels[label] = len(num_labels)
+                    sentiment_data.append((sent, label, sent_id))
+                except:
+                    pprint(record)
 
     print(f"Loaded {len(sentiment_data)} {split} examples from {sentiment_filename}")
 
