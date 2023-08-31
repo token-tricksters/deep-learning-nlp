@@ -757,7 +757,7 @@ if __name__ == "__main__":
                 scheduler=scheduler,
                 search_alg=algo,
                 chdir_to_trial_dir=False,  # Still access local files
-                max_concurrent_trials=2,  # Number of trials to run concurrently
+                max_concurrent_trials=4,  # Number of trials to run concurrently
                 trial_dirname_creator=lambda trial: f"{trial.trainable_name}_{trial.trial_id}_{','.join(f'{k}={format_value(v)}' for k, v in trial.evaluated_params.items())}",
             ),
             run_config=air.RunConfig(log_to_file="std.log", verbose=1),  # Don't spam CLI
