@@ -95,6 +95,12 @@ class MultitaskBERT(nn.Module):
         self.paraphrase_linear2 = torch.nn.Linear(config.hidden_size, config.hidden_size)
         self.paraphrase_out = torch.nn.Linear(config.hidden_size, 2)
 
+        # SIMILARITY
+        self.sim_linear = nn.Linear(config.hidden_size, config.hidden_size)
+        self.sim_linear1 = torch.nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.sim_linear2 = torch.nn.Linear(config.hidden_size, config.hidden_size)
+        self.sim_out = torch.nn.Linear(config.hidden_size, 1)
+
     def forward(self, input_ids, attention_mask):
         "Takes a batch of sentences and produces embeddings for them."
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
@@ -161,8 +167,22 @@ class MultitaskBERT(nn.Module):
         bert_embeddings_1 = self.forward(input_ids_1, attention_mask_1)
         bert_embeddings_2 = self.forward(input_ids_2, attention_mask_2)
 
-        diff = torch.cosine_similarity(bert_embeddings_1, bert_embeddings_2)
-        return diff * 5
+        combined_bert_embeddings_1 = self.sim_linear(bert_embeddings_1)
+        combined_bert_embeddings_2 = self.sim_linear(bert_embeddings_2)
+
+        # Calculate absolute difference and sum of combined embeddings
+        abs_diff = torch.abs(combined_bert_embeddings_1 - combined_bert_embeddings_2)
+        abs_sum = torch.abs(combined_bert_embeddings_1 + combined_bert_embeddings_2)
+
+        # Concatenate the absolute difference and sum
+        concatenated_features = torch.cat((abs_diff, abs_sum), dim=1)
+
+        # Apply linear layers to obtain logits for both "yes" and "no" predictions
+        logits = F.relu(self.sim_linear1(concatenated_features))
+        logits = F.relu(self.sim_linear2(logits))
+        logits = self.sim_out(logits).squeeze()
+
+        return logits
 
 
 def save_model(model, optimizer, args, config, filepath):
