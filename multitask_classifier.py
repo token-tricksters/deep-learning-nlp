@@ -453,7 +453,7 @@ def train_multitask(args):
                     param.requires_grad = True  # Unfreeze the layer
 
         if len(unfreezed) > 0:
-            print(f"Unfreezed BERT layers: {unfreezed}", file=sys.stderr)
+            print(f"Unfreezed BERT layers: {list(unfreezed)}", file=sys.stderr)
 
         for sts, para, sst in tqdm(
             zip(sts_train_dataloader, para_train_dataloader, sst_train_dataloader),
