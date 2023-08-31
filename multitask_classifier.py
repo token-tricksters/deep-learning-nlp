@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 import torch.nn.functional as F
+from pytorch_optimizer import SophiaH as SophiaHref
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -386,6 +387,16 @@ def train_multitask(args):
             rho=args.rho,
             update_period=hess_interval,
         )
+    elif args.optimizer == "sophiahref":
+        optimizer = SophiaHref(
+            model.parameters(),
+            lr=lr,
+            betas=(0.985, 0.99),
+            weight_decay=args.weight_decay,
+            eps=1e-12,
+            p=args.rho,
+            update_period=hess_interval,
+        )
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
@@ -657,7 +668,7 @@ def get_args():
     parser.add_argument(
         "--optimizer",
         type=str,
-        choices=("adamw", "sophiah"),
+        choices=("adamw", "sophiah", "sophiahref"),
         default="adamw",
     )
     parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
@@ -728,8 +739,8 @@ if __name__ == "__main__":
         config = vars(args)
         tune_config = {
             "lr": tune.loguniform(1e-5, 1e-1),
-            "rho": tune.loguniform(1e-5, 1e-1),
-            "hess_interval": tune.choice([5, 10, 20, 50, 100, 500]),
+            "rho": tune.loguniform(1e-3, 1e-1),
+            "hess_interval": tune.choice([1, 2, 5, 10, 20, 50]),
         }
         config.update(tune_config)
 
