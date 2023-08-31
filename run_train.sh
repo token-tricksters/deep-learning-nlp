@@ -30,4 +30,4 @@ nvcc -V
 git branch
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --option finetune --epochs 20 --sst_train data/ids-sst-train-syn2.csv
+python -u multitask_classifier.py --use_gpu --option finetune --epochs 20 --sst_train data/ids-sst-train-syn3.csv
