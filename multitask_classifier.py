@@ -71,13 +71,10 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = True
 
         if config.unfreeze_interval:
-            if config.option == "pretrain":
-                for name, param in self.bert.named_parameters():
-                    if not name.startswith("bert_layers"):
-                        continue
-                    param.requires_grad = False
-            else:
-                print("Unfreeze used in finetune mode, ignoring")
+            for name, param in self.bert.named_parameters():
+                if not name.startswith("bert_layers"):
+                    continue
+                param.requires_grad = False
 
         self.use_additional_input = config.additional_input
 
