@@ -727,9 +727,9 @@ if __name__ == "__main__":
 
         config = vars(args)
         tune_config = {
-            "weight_decay": tune.choice([0.1, 0.01, 0.001, 0.0001, 0]),
-            "hidden_dropout_prob": tune.choice([0.0, 0.1, 0.2, 0.3, 0.4, 0.5]),
-            "clip": tune.loguniform(0.01, 10),
+            "lr": tune.loguniform(1e-5, 1e-1),
+            "rho": tune.loguniform(1e-5, 1e-1),
+            "hess_interval": tune.choice([5, 10, 20, 50, 100, 500]),
         }
         config.update(tune_config)
 
@@ -745,7 +745,7 @@ if __name__ == "__main__":
         # Search Algorithm: Optuna
         algo = OptunaSearch(metric=["sst_dev_acc", "para_dev_acc", "sts_dev_acc"], mode=["max"] * 3)
 
-        ray.init(num_cpus=16, log_to_driver=False)  # Don't print logs to console
+        ray.init(num_cpus=32, log_to_driver=False)  # Don't print logs to console
 
         tuner = tune.Tuner(
             tune.with_resources(
