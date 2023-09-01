@@ -668,10 +668,10 @@ def get_args():
         choices=("adamw", "sophiah", "sophiahref"),
         default="adamw",
     )
-    parser.add_argument("--rho", type=float, default=0.05, help="rho for SophiaH optimizer")
+    parser.add_argument("--rho", type=float, default=0.02, help="rho for SophiaH optimizer")
     parser.add_argument("--weight_decay", type=float, default=0.05)
     parser.add_argument(
-        "--hess_interval", type=int, default=10, help="Hessian update interval for SophiaH"
+        "--hess_interval", type=int, default=50, help="Hessian update interval for SophiaH"
     )
     parser.add_argument("--smoketest", action="store_true", help="Run a smoke test")
 
@@ -694,7 +694,9 @@ def get_args():
         "--lr",
         type=float,
         help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
-        default=8e-5 * (1 / args.rho if "sophiah" in args.optimizer else 1)
+        default=4e-4
+        if "sophiah" in args.optimizer
+        else 8e-5
         if args.option == "finetune"
         else 1e-3 * (1 / args.rho if "sophiah" in args.optimizer else 1),
     )
