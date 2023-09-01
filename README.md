@@ -185,6 +185,14 @@ allows for 5 degrees of similarity.
 > 📋 Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main
 > result is a figure, include that figure and link to the command or notebook to reproduce it.
 
+## Comparisons
+
+### [Paraphrase Identification](https://paperswithcode.com/paper/spanbert-improving-pre-training-by)
+
+### [Sentiment Classification](https://paperswithcode.com/paper/fine-grained-sentiment-classification-using)
+
+### [Semantic Textual Similarity](https://paperswithcode.com/paper/albert-a-lite-bert-for-self-supervised)
+
 ## Contributors
 
 | Lars Kaesberg   | Niklas Bauer | Constantin Dalinghaus | Sebastian Kampen |
