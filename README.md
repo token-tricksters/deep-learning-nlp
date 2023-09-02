@@ -1,11 +1,10 @@
 # DNLP SS23 Final Project - Multitask BERT
-    
+
 <div align="right">
-<u> Token Tricksters </u> <br/>
+T͟o͟k͟e͟n͟ T͟r͟i͟c͟k͟s͟t͟e͟r͟s͟ <br/>
 Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
-Sebastian Kampen <br/>
 </div>
 
 ## Introduction
@@ -87,6 +86,8 @@ three tasks of paraphrase identification, sentiment classification, and semantic
 
 ### POS and NER Tag Embeddings
 
+<sup><sup><b>Lars Kaesberg</b></sup></sup>
+
 Based on Bojanowski, et al. ([Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606)), which showed that the
 addition of subword information to word embeddings can improve performance on downstream tasks, we extended our approach
 by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation.
@@ -135,6 +136,8 @@ explain why the inclusion of POS and NER tags did not lead to performance improv
 
 ### Sophia
 
+<sup><sup><b>Niklas Bauer</b></sup></sup>
+
 We implemented the Sophia (**S**econd-**o**rder Cli**p**ped Stoc**h**astic Opt**i**miz**a**tion) optimizer completly
 from scratch, which is a second-order optimizer for language model pre-training. The paper promises convergence twice as
 fast as AdamW and better generalisation performance. It uses a light weight estimate of the diagonal of the Hessian
@@ -174,6 +177,8 @@ performance being about the same as the baseline (AdamW), which is what we obser
 
 ### Data Augmentation
 
+<sup><sup><b>Constantin Dalinghaus</b></sup></sup>
+
 Some generated data.
 
 ---
@@ -181,6 +186,8 @@ Some generated data.
 ### More Details
 
 #### Classifier
+
+<sup><sup><b>Lars Kaesberg</b></sup></sup>
 
 The design and selection of classifiers are crucial in multi-task learning, especially when the tasks are deeply
 intertwined. The performance of one classifier can cascade its effects onto others, either enhancing the overall results
@@ -223,6 +230,8 @@ between 0 and 5, providing an estimate of how semantically similar the two sente
 
 #### Layer Unfreeze
 
+<sup><sup><b>Lars Kaesberg</b></sup></sup>
+
 Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The idea behind
 this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers are trained while the bottom layers are frozen. As training progresses, more layers are incrementally
 unfrozen, allowing for deeper layers of the model to be adjusted.
@@ -242,9 +251,13 @@ unfreezing layers may have been offset by this unintended interaction.
 
 #### Automatic Mixed Precision
 
+<sup><sup><b>Niklas Bauer</b></sup></sup>
+
 The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
 
 ## Experiments
+
+<sup><sup><b>Niklas Bauer</b></sup></sup>
 
 We used the default datasets provided for training and validation with no modifications.
 
@@ -257,6 +270,8 @@ We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyp
 The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
 
 ## Results
+
+<sup><sup><b>Niklas Bauer</b></sup></sup>
 
 Our multitask model achieves the following performance on:
 
@@ -314,6 +329,8 @@ allows for 5 degrees of similarity.
 | Classifier Model | Repository   |                       |
 
 ## Contributing
+
+<sup><sup><b>Niklas Bauer</b></sup></sup>
 
 The project involves the creation of software and documentation to be released under an open source licence.
 This license is the Apache License 2.0, which is a permissive licence that allows the use of the software for
