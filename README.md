@@ -1,8 +1,7 @@
 # DNLP SS23 Final Project - Multitask BERT
-
-<sup> Token Tricksters </sup>
-
+    
 <div align="right">
+<u> Token Tricksters </u> <br/>
 Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
@@ -10,6 +9,11 @@ Sebastian Kampen <br/>
 </div>
 
 ## Introduction
+![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)
+![PyTorch 2.0](https://img.shields.io/badge/PyTorch-2.0-orange.svg)
+![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)
+![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
+![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
@@ -219,22 +223,20 @@ between 0 and 5, providing an estimate of how semantically similar the two sente
 
 #### Layer Unfreeze
 
-Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The main idea behind
-this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers (closest
-to the output) are trained while the bottom layers are frozen. As training progresses, more layers are incrementally
-unfrozen, allowing for deeper layers of the model to be adjusted based on the specific downstream task.
+Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The idea behind
+this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers are trained while the bottom layers are frozen. As training progresses, more layers are incrementally
+unfrozen, allowing for deeper layers of the model to be adjusted.
 
 One of the motivations to use layer unfreezing is to prevent *catastrophic forgetting*—a phenomenon where the model
 rapidly forgets its previously learned representations when fine-tuned on a new
-task ([Howard & Ruder, 2018](https://arxiv.org/abs/1801.06146)). By incrementally unfreezing the layers, the hope is to
+task ([Howard and Ruder](https://arxiv.org/abs/1801.06146)). By incrementally unfreezing the layers, the hope is to
 preserve valuable pretrained representations in the earlier layers while allowing the model to adapt to the new task.
 
-In our implementation, a specific number of BERT layers were unfrozen at each epoch. However, our experiments yielded
-somewhat counterintuitive results. Instead of observing an improvement, we noticed a decline in performance. A potential
-reason for this could be the interplay between the layer unfreezing schedule and the learning rate scheduler. As the
-learning rate scheduler reduced the learning rate, not all layers were unfrozen yet. This mismatch might have impeded
-the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from
-the layer unfreezing technique might have been overshadowed by this unintended interaction.
+In our implementation, we saw a decrease in performance. One possible
+reason for this could be the interaction between the layer thaw schedule and the learning rate scheduler (plateau). As the
+learning rate scheduler reduced the learning rate, not all layers were yet unfrozen. This mismatch may have hindered
+the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from the
+unfreezing layers may have been offset by this unintended interaction.
 
 #### Mixture of Experts
 
