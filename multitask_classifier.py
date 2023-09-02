@@ -421,8 +421,6 @@ def train_multitask(args):
     )
     writer = SummaryWriter(log_dir=path)
 
-    writer.add_hparams(vars(args), {}, run_name="hparams")
-
     if args.profiler:
         prof = torch.profiler.profile(
             schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
@@ -602,6 +600,15 @@ def train_multitask(args):
             f"Epoch {epoch}: train loss :: {train_loss :.3f}, combined train acc :: {train_acc :.3f}, combined dev acc :: {dev_acc :.3f}"
         )
 
+    if not args.smoketest:
+        dev_sentiment_accuracy, dev_paraphrase_accuracy, dev_sts_corr = test_model(args)
+        metric_dict = {
+            "metric/dev_sentiment_accuracy": dev_sentiment_accuracy,
+            "metric/dev_paraphrase_accuracy": dev_paraphrase_accuracy,
+            "metric/dev_sts_corr": dev_sts_corr,
+        }
+        writer.add_hparams(vars(args), metric_dict, run_name="hparams")
+
 
 def test_model(args):
     with torch.no_grad():
@@ -614,7 +621,7 @@ def test_model(args):
         model = model.to(device)
         print(f"Loaded model to test from {args.filepath}")
 
-        test_model_multitask(args, model, device)
+        return test_model_multitask(args, model, device)
 
 
 def get_args():
@@ -792,7 +799,5 @@ if __name__ == "__main__":
     else:
         try:
             train_multitask(args)
-            if not args.smoketest:
-                test_model(args)
         except KeyboardInterrupt:
             print("Keyboard interrupt.")
