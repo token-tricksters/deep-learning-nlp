@@ -288,9 +288,10 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name       | Parameters   | Accuracy |
-|------------------|--------------|----------|
-| SophiaH | --lr 4e-4 --optimizer sophiah | 85.3%   |
+| Model name       | Parameters   | Accuracy | Note                         |
+|------------------|--------------|----------|------------------------------|
+|data2Vec| |92.4%| State-of-the-art single task |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 85.3%   |                              |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -300,9 +301,10 @@ determine individual feelings towards particular products, politicians, or withi
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
 
-| Model name       | Parameters   | Accuracy |
-|------------------|--------------|----------|
-| SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%   |
+| Model name       | Parameters   | Accuracy | Note                         |
+|------------------|--------------|----------|------------------------------|
+|Heinsen Routing + RoBERTa Large| | 59.8%    | State-of-the-art single task |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%    |                              |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -311,9 +313,10 @@ more similar than others; STS seeks to measure the degree of semantic equivalenc
 et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
 allows for 5 degrees of similarity.
 
-| Model name       | Parameters   | Pearson Correlation |
-|------------------|--------------|---------------------|
-| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87               |
+| Model name       | Parameters   | Pearson Correlation | Note                         |
+|------------------|--------------|--------------------|------------------------------|
+|MT-DNN-SMART| |0.929| State-of-the-art single task |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87              |                              |
 
 ## PyTorch Profiler Results
 <details>
