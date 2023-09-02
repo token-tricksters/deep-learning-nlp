@@ -259,6 +259,17 @@ learning rate scheduler reduced the learning rate, not all layers were yet unfro
 the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from the
 unfreezing layers may have been offset by this unintended interaction.
 
+#### Mixture of Experts
+
+Inspired by unconfirmed reports indicating that GPT-4 employs a Mixture of Experts (MoE) architecture, our research aims to explore the feasibility and potential benefits of incorporating MoE into our multitask classification paradigm. Unlike conventional, monolithic architectures, the MoE model consists of an ensemble of specialized "expert" sub-models, each fine-tuned for handling a distinct segment of the data space.
+
+***Expert Composition***: Our implementation of the MoE model features three expert sub-models, each based on a distinct BERT architecture. Additionally, a fourth BERT model is employed to perform three-way classification, serving as the gating mechanism for the ensemble.
+
+***Gating Mechanisms***: Two different types of gating were investigated—Soft Gate, which utilizes a Softmax function to weigh the contributions of each expert, and Hard Gate, which solely allows the expert model with the highest score to influence the final prediction.
+
+***Performance Metrics***: Despite the theoretical advantages of a MoE approach, our experimental results did not yield any performance improvements over our best-performing baseline models.
+
+
 #### Automatic Mixed Precision
 
 The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
