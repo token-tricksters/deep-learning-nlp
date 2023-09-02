@@ -30,4 +30,4 @@ nvcc -V
 git branch
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --option finetune --scheduler step --tensorboard_subfolder seperate --separate_optimizers
+python -u multitask_classifier.py --use_gpu --option finetune --scheduler step --tensorboard_subfolder separate --separate_optimizers
