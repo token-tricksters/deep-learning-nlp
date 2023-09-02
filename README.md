@@ -260,6 +260,14 @@ the model's ability to make effective adjustments to the newly unfrozen layers. 
 unfreezing layers may have been offset by this unintended interaction.
 
 #### Mixture of Experts
+Inspired by unconfirmed reports indicating that GPT-4 employs a Mixture of Experts (MoE) architecture, our research aims to explore the feasibility and potential benefits of incorporating MoE into our multitask classification paradigm. Unlike conventional, monolithic architectures, the MoE model consists of an ensemble of specialized "expert" sub-models, each fine-tuned for handling a distinct segment of the data space.
+
+***Expert Composition***: Our implementation of the MoE model features three expert sub-models, each based on a distinct BERT architecture. Additionally, a fourth BERT model is employed to perform three-way classification, serving as the gating mechanism for the ensemble.
+
+***Gating Mechanisms***: Two different types of gating were investigated—Soft Gate, which utilizes a Softmax function to weigh the contributions of each expert, and Hard Gate, which solely allows the expert model with the highest score to influence the final prediction.
+
+***Performance Metrics***: Despite the theoretical advantages of a MoE approach, our experimental results did not yield any performance improvements over our best-performing baseline models.
+
 
 #### Automatic Mixed Precision
 
