@@ -174,7 +174,31 @@ performance being about the same as the baseline (AdamW), which is what we obser
 
 ### Data Augmentation
 
-Some generated data.
+In light of emerging advancements in imitation learning—particularly the success of small language models in approximating the performance of larger, proprietary models (Taori et al., 2023)—this study investigates the efficacy of synthetic data for enhancing multitask classification algorithms. The focus of our proof-of-concept experiment is on sentiment classification, a task that presents significant challenges. We explore three methodologies for synthetic data generation: 1) constructing a language model from the ground up, 2) finetuning an existing language model, and 3) employing prompts for data generation.
+
+#### De Novo Transformer-based Language Model
+
+Constructing a transformer-based language model from scratch yielded data of suboptimal quality, characterized by out-of-distribution samples. The model manifested difficulties in assimilating the available training data, often resulting in incoherent outputs.
+
+#### Finetuning GPT-2
+
+We employed the GPT-2 medium model variant by OpenAI (Radford et al., 2018) and finetuned it using a constant learning rate on the sentiment classification training set. This finetuned model was then used to generate 100,000 training samples, an increase by an order of magnitude compared to the original dataset. While these samples were more contextually relevant compared to those from the first method, they still exhibited coherence issues to some extent.
+
+#### Prompt-based Data Generation
+For our third approach, we utilized a custom prompt to solicit synthetic data from ChatGPT-4:
+
+```
+For building a sentiment classifier, I need highly educational examples. I will provide you with some examples, please continue to give me examples on the same level of quality and average complexity. Please also respect the quirky formatting and return them as tab-seperated:
+
+shuf -n 15 ids-sst-train.csv | awk -F'\t' '{print $3 "\t" $4}'
+```
+The data sampled by GPT4 is of the highest quality available. However, due to the closed-source nature of GPT4 and the limitations opposed on the chatGPT premium plan, only a limited quantity of this data was able to be acquired (~500 examples)
+
+#### Results
+None of the above methods improved the model performance beyond the capabilities of our best model. Notably, using 100.000 synthetic examples from GPT2, our model did not overfit to the train set, even after 30 epochs. It can be argued that the model may not be converged, however validation loss ceised to improve further so training was ended without full convergence achieved.
+
+#### Disclaimer: Synthetic data
+It is important to note that only the first method assures complete freedom from data contamination. GPT-2 and GPT-4 models were trained on undisclosed datasets, raising the potential issue of data overlap with our sentiment classification dataset. While it is improbable that these models would replicate specific test set examples, the caveat remains. Our exploration of these methods should be interpreted as an educational exercise, and we make no claims of superior model performance.
 
 ---
 
