@@ -1,8 +1,15 @@
-# DNLP SS23 Final Project - Multitask BERT - Token Tricksters
+# DNLP SS23 Final Project - Multitask BERT
+
+<p><sup> Token Tricksters </sup></p>
+<p align="right">
+Lars Benedikt Kaesberg <br/>
+Niklas Bauer <br/>
+Constantin Dalinghaus <br/>
+Sebastian Kampen <br/>
+</p>
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
-Processing course at the University of Göttingen by Lars Kaesberg, Niklas Bauer, Constantin Dalinghaus, and Sebastian
-Kampen.
+Processing course at the University of Göttingen.
 
 A pretrained
 BERT ([BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805))
@@ -29,56 +36,32 @@ We use Python 3.10 and PyTorch 2.0+.
 To train the model, activate the environment and run this command:
 
 ```sh
-python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 64
+python -u multitask_classifier.py --use_gpu
 ```
 
 There are a lot of parameters that can be set. To see all of them, run `python multitask_classifier.py --help`. The most
 important ones are:
 
-| Parameter                 | Description                                                                    |
-|---------------------------|--------------------------------------------------------------------------------|
-| `--use_gpu`               | Whether to use the GPU.                                                        |
-| `--lr`                    | Learning rate.                                                                 |
-| `--batch_size`            | Batch size.                                                                    |
-| `--epochs`                | Number of epochs.                                                              |
-| `--optimizer`             | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.            |
-| `--scheduler`             | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.   |
-| `--unfreeze_interval`     | Number of epochs until the next BERT layer is unfrozen                         |
-| `--additional_input`      | Activates the usage for POS and NER tags for the input of BERT                 |
-| `--sst_train`             | Path to SST train data.                                                        |
-| `--sst_dev`               | Path to SST dev data.                                                          |
-| `--sst_test`              | Path to SST test data.                                                         |
-| `--para_train`            | Path to paraphrase train data.                                                 |
-| `--para_dev`              | Path to paraphrase dev data.                                                   |
-| `--para_test`             | Path to paraphrase test data.                                                  |
-| `--sts_train`             | Path to STS train data.                                                        |
-| `--sts_dev`               | Path to STS dev data.                                                          |
-| `--sts_test`              | Path to STS test data.                                                         |
-| `--seed`                  | Random seed for reproducibility.                                               |
-| `--option`                | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
-| `--profiler`              | Activates the profiler.                                                        |
-| `--sts`                   | Activates the STS dataset.                                                     |
-| `--sst`                   | Activates the SST dataset.                                                     |
-| `--para`                  | Activates the paraphrase dataset.                                              |
-| `--sst_dev_out`           | Path to save SST dev predictions.                                              |
-| `--sst_test_out`          | Path to save SST test predictions.                                             |
-| `--para_dev_out`          | Path to save paraphrase dev predictions.                                       |
-| `--para_test_out`         | Path to save paraphrase test predictions.                                      |
-| `--sts_dev_out`           | Path to save STS dev predictions.                                              |
-| `--sts_test_out`          | Path to save STS test predictions.                                             |
-| `--logdir`                | Directory for logging.                                                         |
-| `--rho`                   | rho for SophiaH optimizer.                                                     |
-| `--weight_decay`          | Weight decay for optimizer.                                                    |
-| `--hess_interval`         | Hessian update interval for SophiaH.                                           |
-| `--smoketest`             | Runs a smoke test.                                                             |
-| `--hidden_dropout_prob`   | Dropout probability for hidden layers.                                         |
-| `--clip`                  | Gradient clipping value.                                                       |
-| `--samples_per_epoch`     | Number of samples per epoch.                                                   |
-| `--checkpoint`            | Path to a checkpoint to resume from.                                           |
-| `--tensorboard_subfolder` | Subfolder for TensorBoard logs.                                                |
-| `--local_files_only`      | Use only local files.                                                          |
-| `--hpo`                   | Activate hyperparameter optimization.                                          |
-| `--hpo_trials`            | Number of trials for hyperparameter optimization.                              |
+| Parameter                  | Description                                                                    |
+|----------------------------|--------------------------------------------------------------------------------|
+| `--additional_input`       | Activates the usage for POS and NER tags for the input of BERT                 |
+| `--batch_size`             | Batch size.                                                                    |
+| `--checkpoint`             | Path to a checkpoint to resume from.                                           |
+| `--clip`                   | Gradient clipping value.                                                       |
+| `--epochs`                 | Number of epochs.                                                              |
+| `--hess_interval`          | Hessian update interval for SophiaH.                                           |
+| `--hidden_dropout_prob`    | Dropout probability for hidden layers.                                         |
+| `--hpo_trials`             | Number of trials for hyperparameter optimization.                              |
+| `--hpo`                    | Activate hyperparameter optimization.                                          |
+| `--lr`                     | Learning rate.                                                                 |
+| `--optimizer`              | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.            |
+| `--option`                 | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
+| `--rho`                    | rho for SophiaH optimizer.                                                     |
+| `--samples_per_epoch`      | Number of samples per epoch.                                                   |
+| `--scheduler`              | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.   |
+| `--unfreeze_interval`      | Number of epochs until the next BERT layer is unfrozen                         |
+| `--use_gpu`                | Whether to use the GPU.                                                        |
+| `--weight_decay`           | Weight decay for optimizer.                                                    |
 
 > 📋 Describe how to train the models, with example commands on how to train the models in your paper, including the full
 > training procedure and appropriate hyperparameters.
@@ -97,7 +80,7 @@ three tasks of paraphrase identification, sentiment classification, and semantic
 
 ### POS and NER Tag Embeddings
 
-Based on [Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606), which showed that the
+Based on Bojanowski, et al.[^1], which showed that the
 addition of subword information to word embeddings can improve performance on downstream tasks, we extended our approach
 by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation.
 The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance
@@ -137,9 +120,13 @@ while minimising the associated computational overhead.
 
 One possible explanation for the lack of performance improvements could be that the BERT model already encodes some
 syntactic information in its word
-embeddings. [A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf)
+embeddings. Hewitt and Manning[^2]
 showed that some syntactic information is already encoded in the word embeddings of pretrained BERT models, which could
 explain why the inclusion of POS and NER tags did not lead to performance improvements.
+
+[^1]: [Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606).
+
+[^2]: [A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf)
 
 ---
 
@@ -176,9 +163,11 @@ not converge faster than AdamW, and the performance was comparable. This could b
 designed for pre-training language models, which is a different task to ours.
 
 A more recent paper studing different training algorithms for transformer-based language
-models ([No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf))
+models by Kaddour et al.[^3]
 comes to the conclusion that the training algorithm gains vanish with a fully decayed learning rate. They show
 performance being about the same as the baseline (AdamW), which is what we observed.
+
+[^3]: [No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf).
 
 ---
 
