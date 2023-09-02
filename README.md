@@ -1,12 +1,12 @@
-<div align="center">
-    <h1>DNLP SS23 Final Project - Multitask BERT</h1>
-    <p><sup> Token Tricksters </sup></p>
-</div>
+# DNLP SS23 Final Project - Multitask BERT
+
+<sup> Token Tricksters </sup>
 
 <div align="right">
-Lars Benedikt Kaesberg <br/>
+Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
+Sebastian Kampen <br/>
 </div>
 
 ## Introduction
@@ -217,10 +217,6 @@ For the Semantic Textual Similarity task, our approach relies on cosine similari
 sentences are generated and then compared using cosine similarity. The resulting similarity score is scaled to range
 between 0 and 5, providing an estimate of how semantically similar the two sentences are.
 
-In conclusion, the selection of our classifiers went beyond just individual task performance. We aimed for a
-collaborative environment where each classifier contributed positively to the collective success of our multi-task
-learning framework.
-
 #### Layer Unfreeze
 
 Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The main idea behind
@@ -240,18 +236,23 @@ learning rate scheduler reduced the learning rate, not all layers were unfrozen 
 the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from
 the layer unfreezing technique might have been overshadowed by this unintended interaction.
 
-Future directions could involve a more synchronized approach where the unfreezing schedule is harmoniously aligned with
-the learning rate adjustments. This way, each unfrozen layer has an optimal learning rate that facilitates effective
-fine-tuning.
-
 #### Mixture of Experts
 
 #### Automatic Mixed Precision
+
 The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
 
 ## Experiments
 
-We used Ray Tune to perform hyperparameter tuning.
+We used the default datasets provided for training and validation with no modifications.
+
+The baseline for our comparisons includes most smaller improvements to the BERT model listed above. The baseline model is further described in the [Results](#results) section. The baseline model was trained for 10 epochs at 10.000 samples per epoch.
+
+The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training time for the baseline model was approximately 2 hours.
+
+We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
+
+The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
 
 ## Results
 
