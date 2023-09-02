@@ -218,16 +218,19 @@ class BertModel(BertPreTrainedModel):
                     # Convert input_ids to tokens using the BERT tokenizer
                     tokens = self.tokenizer.convert_ids_to_tokens(sequence_id.tolist())
 
-                    # Convert tokens to strings
+                    # Convert tokens to strings and remove special tokens
                     token_strings = [
                         token for token in tokens if token not in ["[PAD]", "[CLS]", "[SEP]"]
                     ]
                     input_string = self.tokenizer.convert_tokens_to_string(token_strings)
+                    # Process the input string with spaCy
                     tokenized = self.nlp(input_string)
                     pos_tags = [0] * len(tokens)
                     ner_tags = [0] * len(tokens)
                     counter = -1
+                    # Loop through the tokens and add the POS and NER tags
                     for i in range(len(token_strings)):
+                        # Add same POS and NER tag to all subwords of a word
                         if not token_strings[i].startswith("##"):
                             counter += 1
                         pos_tags[i + 1] = self.pos_tag_vocab.get(tokenized[counter].tag_, 0)

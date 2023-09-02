@@ -44,6 +44,7 @@ class SentenceClassificationDataset(Dataset):
         return self.override_length
 
     def __getitem__(self, idx):
+        # If we're overriding the length, we want to sample randomly from the dataset
         if self.override_length is not None:
             return random.choice(self.dataset)
 
@@ -139,6 +140,7 @@ class SentencePairDataset(Dataset):
         return self.override_length
 
     def __getitem__(self, idx):
+        # If we're overriding the length, we want to sample randomly from the dataset
         if self.override_length is not None:
             return random.choice(self.dataset)
 

@@ -372,3 +372,5 @@ def test_model_multitask(args, model, device):
         f.write("id \t Predicted_Similiary \n")
         for p, s in zip(test_sts_sent_ids, test_sts_y_pred):
             f.write(f"{p} , {s} \n")
+
+    return dev_sentiment_accuracy, dev_paraphrase_accuracy, dev_sts_corr

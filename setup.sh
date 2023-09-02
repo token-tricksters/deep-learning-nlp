@@ -34,4 +34,6 @@ pip install pre-commit
 pip install cmake
 pip install lit
 
-pip install pytorch_optimizer
+# For the hyperparameter tuning
+pip install "ray[tune]"
+pip install optuna

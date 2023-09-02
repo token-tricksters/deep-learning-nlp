@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=train-bert-token-tricksters
-#SBATCH -t 10:00:00                  # estimated time # TODO: adapt to your needs
+#SBATCH -t 12:00:00                  # estimated time # TODO: adapt to your needs
 #SBATCH -p grete:shared              # the partition you are training on (i.e., which nodes), for nodes see sinfo -p grete:shared --format=%N,%G
 #SBATCH -G A100:1                    # take 1 GPU, see https://www.hlrn.de/doc/display/PUB/GPU+Usage for more options
 #SBATCH --mem-per-gpu=5G             # setting the right constraints for the splitted gpu partitions
 #SBATCH --nodes=1                    # total number of nodes
 #SBATCH --ntasks=1                   # total number of tasks
-#SBATCH --cpus-per-task=4            # number cores per task
+#SBATCH --cpus-per-task=32           # number cores per task
 #SBATCH --mail-type=END,FAIL         # send mail when job begins and ends
 #SBATCH --mail-user=l.kaesberg@stud.uni-goettingen.de   
 #SBATCH --output=./slurm_files/slurm-%x-%j.out     # where to write output, %x give job name, %j names job id
@@ -30,4 +30,4 @@ nvcc -V
 git branch
 
 # Run the script:
-python -u multitask_classifier.py --use_gpu --batch_size 32 --option finetune --samples_per_epoch 10000 --scheduler cosine --epochs 50 --weight_decay 0.1  --tensorboard_subfolder optimizer
+python -u multitask_classifier.py --use_gpu --option finetune --optimizer sophiahref --tensorboard_subfolder sophia --hpo --hpo_trials 60
