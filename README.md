@@ -329,6 +329,44 @@ allows for 5 degrees of similarity.
 
 ### [Semantic Textual Similarity](https://paperswithcode.com/paper/albert-a-lite-bert-for-self-supervised)
 
+## PyTorch Profiler Results
+<details>
+  <summary>Click me</summary>
+We utilized the `pytorch_profiler` integrated with TensorBoard to gain insights into the execution performance and resource utilization during our model's training on a GPU.
+
+### Configuration Details:
+- **Number of Workers:** 1
+- **Device Type:** GPU
+
+### GPU Summary:
+- **Model:** NVIDIA A100-SXM4-80GB
+- **Total Memory:** 79.19 GB
+- **Compute Capability:** 8.0
+- **GPU Utilization:** 64.35%
+- **Estimated SM Efficiency:** 59.55%
+- **Estimated Achieved Occupancy:** 47.89%
+
+### Execution Breakdown:
+
+| Category          | Time Duration (us) | Percentage (%) |
+|-------------------|--------------------|----------------|
+| Average Step Time | 2,199,623          | 100            |
+| GPU Kernel        | 1,415,549          | 64.35          |
+| Memcpy            | 3,064              | 0.14           |
+| Memset            | 4,455              | 0.20           |
+| CPU Execution     | 574,478            | 26.12          |
+| Other             | 202,077            | 9.19           |
+| DataLoader        | 0                  | 0              |
+| Runtime           | 0                  | 0              |
+
+### Insights:
+
+The profiler results provide a detailed look into how the model's computations are distributed. A significant portion of the execution time (64.35%) is consumed by GPU kernel operations, indicating that the bulk of the computational heavy-lifting is done on the GPU. Meanwhile, CPU-related tasks took up about a quarter of the total execution time at 26.12%. Operations such as `Memcpy` and `Memset` have minimal impact on the overall performance.
+
+Given the GPU utilization rate of 64.35% and the estimated SM efficiency, there may be room for optimization in the future. Enhancing kernel functions or restructuring model operations might lead to improvements in SM efficiency and occupancy, potentially boosting overall performance.
+
+</details>
+
 ## Contributors
 
 | Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus |
