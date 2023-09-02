@@ -70,6 +70,7 @@ class MultitaskBERT(nn.Module):
             elif config.option == "finetune":
                 param.requires_grad = True
 
+        # Freeze the layers if unfreeze_interval is set
         if config.unfreeze_interval:
             for name, param in self.bert.named_parameters():
                 if not name.startswith("bert_layers"):
@@ -213,6 +214,7 @@ def train_multitask(args):
     if isinstance(args, dict):
         args = SimpleNamespace(**args)
 
+    # Determine which datasets to train on
     train_all_datasets = True
     n_datasets = args.sst + args.sts + args.para
     if args.sst or args.sts or args.para:
@@ -229,6 +231,7 @@ def train_multitask(args):
         args.sst_dev, args.para_dev, args.sts_dev, split="train"
     )
 
+    # Generate datasets and dataloaders for training and testing
     sst_train_dataloader = None
     sst_dev_dataloader = None
     para_train_dataloader = None
@@ -236,7 +239,7 @@ def train_multitask(args):
     sts_train_dataloader = None
     sts_dev_dataloader = None
     total_num_batches = 0
-    # if train_all_datasets or args.sst:
+
     sst_train_data = SentenceClassificationDataset(
         sst_train_data, args, override_length=args.samples_per_epoch
     )
@@ -259,7 +262,6 @@ def train_multitask(args):
         num_workers=2,
     )
 
-    # if train_all_datasets or args.para:
     para_train_data = SentencePairDataset(
         para_train_data, args, override_length=args.samples_per_epoch
     )
@@ -282,7 +284,6 @@ def train_multitask(args):
         num_workers=2,
     )
 
-    # if train_all_datasets or args.sts:
     sts_train_data = SentencePairDataset(
         sts_train_data, args, isRegression=True, override_length=args.samples_per_epoch
     )
@@ -374,7 +375,6 @@ def train_multitask(args):
     if args.optimizer == "adamw":
         optimizer = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
     elif args.optimizer == "sophiah":
-        # TODO: Tune this further, https://github.com/Liuhong99/Sophia#hyper-parameter-tuning
         optimizer = SophiaH(
             model.parameters(),
             lr=lr,
