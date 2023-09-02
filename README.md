@@ -1,12 +1,16 @@
-# DNLP SS23 Final Project - Multitask BERT
+<div align="center">
+    <h1>DNLP SS23 Final Project - Multitask BERT</h1>
+    <p><sup> Token Tricksters </sup></p>
+</div>
 
-<p><sup> Token Tricksters </sup></p>
-<p align="right">
+<div align="right">
 Lars Benedikt Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
 Sebastian Kampen <br/>
-</p>
+</div>
+
+## Introduction
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
