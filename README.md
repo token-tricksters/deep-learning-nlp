@@ -57,7 +57,7 @@ important ones are:
 | `--hpo_trials`          | Number of trials for hyperparameter optimization.                              |
 | `--hpo`                 | Activate hyperparameter optimization.                                          |
 | `--lr`                  | Learning rate.                                                                 |
-| `--optimizer`           | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.            |
+| `--optimizer`           | Optimizer to use. Options are `AdamW` and `SophiaH`.            |
 | `--option`              | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
 | `--rho`                 | rho for SophiaH optimizer.                                                     |
 | `--samples_per_epoch`   | Number of samples per epoch.                                                   |
@@ -83,7 +83,7 @@ three tasks of paraphrase identification, sentiment classification, and semantic
 
 ### POS and NER Tag Embeddings
 
-Based on Bojanowski, et al.[^1], which showed that the
+Based on Bojanowski, et al. ([Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606)), which showed that the
 addition of subword information to word embeddings can improve performance on downstream tasks, we extended our approach
 by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation.
 The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance
@@ -123,13 +123,9 @@ while minimising the associated computational overhead.
 
 One possible explanation for the lack of performance improvements could be that the BERT model already encodes some
 syntactic information in its word
-embeddings. Hewitt and Manning[^2]
+embeddings. Hewitt and Manning ([A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf))
 showed that some syntactic information is already encoded in the word embeddings of pretrained BERT models, which could
 explain why the inclusion of POS and NER tags did not lead to performance improvements.
-
-[^1]: [Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606).
-
-[^2]: [A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf)
 
 ---
 
@@ -166,11 +162,9 @@ not converge faster than AdamW, and the performance was comparable. This could b
 designed for pre-training language models, which is a different task to ours.
 
 A more recent paper studing different training algorithms for transformer-based language
-models by Kaddour et al.[^3]
+models by Kaddour et al. ([No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf))
 comes to the conclusion that the training algorithm gains vanish with a fully decayed learning rate. They show
 performance being about the same as the baseline (AdamW), which is what we observed.
-
-[^3]: [No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf).
 
 ---
 
@@ -253,6 +247,7 @@ fine-tuning.
 #### Mixture of Experts
 
 #### Automatic Mixed Precision
+The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
 
 ## Experiments
 
@@ -311,8 +306,8 @@ allows for 5 degrees of similarity.
 
 | Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus |
 |------------------|--------------|-----------------------|
-| Tagging          | Sophia       | Synthetic Data        |
-| Layer Unfreeze   | HPO          | Mixture of Experts    |
+| Tagging          | Sophia Optimizer       | Synthetic Data        |
+| Layer Unfreeze   | Hyperparameter Tuning          |     |
 | Classifier Model | Repository   |                       |
 
 ## Contributing
