@@ -7,7 +7,6 @@
 Lars Benedikt Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
-Sebastian Kampen <br/>
 </div>
 
 ## Introduction
@@ -46,26 +45,26 @@ python -u multitask_classifier.py --use_gpu
 There are a lot of parameters that can be set. To see all of them, run `python multitask_classifier.py --help`. The most
 important ones are:
 
-| Parameter                  | Description                                                                    |
-|----------------------------|--------------------------------------------------------------------------------|
-| `--additional_input`       | Activates the usage for POS and NER tags for the input of BERT                 |
-| `--batch_size`             | Batch size.                                                                    |
-| `--checkpoint`             | Path to a checkpoint to resume from.                                           |
-| `--clip`                   | Gradient clipping value.                                                       |
-| `--epochs`                 | Number of epochs.                                                              |
-| `--hess_interval`          | Hessian update interval for SophiaH.                                           |
-| `--hidden_dropout_prob`    | Dropout probability for hidden layers.                                         |
-| `--hpo_trials`             | Number of trials for hyperparameter optimization.                              |
-| `--hpo`                    | Activate hyperparameter optimization.                                          |
-| `--lr`                     | Learning rate.                                                                 |
-| `--optimizer`              | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.            |
-| `--option`                 | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
-| `--rho`                    | rho for SophiaH optimizer.                                                     |
-| `--samples_per_epoch`      | Number of samples per epoch.                                                   |
-| `--scheduler`              | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.   |
-| `--unfreeze_interval`      | Number of epochs until the next BERT layer is unfrozen                         |
-| `--use_gpu`                | Whether to use the GPU.                                                        |
-| `--weight_decay`           | Weight decay for optimizer.                                                    |
+| Parameter               | Description                                                                    |
+|-------------------------|--------------------------------------------------------------------------------|
+| `--additional_input`    | Activates the usage for POS and NER tags for the input of BERT                 |
+| `--batch_size`          | Batch size.                                                                    |
+| `--checkpoint`          | Path to a checkpoint to resume from.                                           |
+| `--clip`                | Gradient clipping value.                                                       |
+| `--epochs`              | Number of epochs.                                                              |
+| `--hess_interval`       | Hessian update interval for SophiaH.                                           |
+| `--hidden_dropout_prob` | Dropout probability for hidden layers.                                         |
+| `--hpo_trials`          | Number of trials for hyperparameter optimization.                              |
+| `--hpo`                 | Activate hyperparameter optimization.                                          |
+| `--lr`                  | Learning rate.                                                                 |
+| `--optimizer`           | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.            |
+| `--option`              | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
+| `--rho`                 | rho for SophiaH optimizer.                                                     |
+| `--samples_per_epoch`   | Number of samples per epoch.                                                   |
+| `--scheduler`           | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.   |
+| `--unfreeze_interval`   | Number of epochs until the next BERT layer is unfrozen                         |
+| `--use_gpu`             | Whether to use the GPU.                                                        |
+| `--weight_decay`        | Weight decay for optimizer.                                                    |
 
 > 📋 Describe how to train the models, with example commands on how to train the models in your paper, including the full
 > training procedure and appropriate hyperparameters.
@@ -230,6 +229,27 @@ learning framework.
 
 #### Layer Unfreeze
 
+Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The main idea behind
+this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers (closest
+to the output) are trained while the bottom layers are frozen. As training progresses, more layers are incrementally
+unfrozen, allowing for deeper layers of the model to be adjusted based on the specific downstream task.
+
+One of the motivations to use layer unfreezing is to prevent *catastrophic forgetting*—a phenomenon where the model
+rapidly forgets its previously learned representations when fine-tuned on a new
+task ([Howard & Ruder, 2018](https://arxiv.org/abs/1801.06146)). By incrementally unfreezing the layers, the hope is to
+preserve valuable pretrained representations in the earlier layers while allowing the model to adapt to the new task.
+
+In our implementation, a specific number of BERT layers were unfrozen at each epoch. However, our experiments yielded
+somewhat counterintuitive results. Instead of observing an improvement, we noticed a decline in performance. A potential
+reason for this could be the interplay between the layer unfreezing schedule and the learning rate scheduler. As the
+learning rate scheduler reduced the learning rate, not all layers were unfrozen yet. This mismatch might have impeded
+the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from
+the layer unfreezing technique might have been overshadowed by this unintended interaction.
+
+Future directions could involve a more synchronized approach where the unfreezing schedule is harmoniously aligned with
+the learning rate adjustments. This way, each unfrozen layer has an optimal learning rate that facilitates effective
+fine-tuning.
+
 #### Mixture of Experts
 
 #### Automatic Mixed Precision
@@ -289,11 +309,11 @@ allows for 5 degrees of similarity.
 
 ## Contributors
 
-| Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus | Sebastian Kampen |
-|------------------|--------------|-----------------------|------------------|
-| Tagging          | Sophia       | Synthetic Data        |                  |
-| Layer Unfreeze   | HPO          | Mixture of Experts    |                  |
-| Classifier Model | Repository   |                       |                  |
+| Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus |
+|------------------|--------------|-----------------------|
+| Tagging          | Sophia       | Synthetic Data        |
+| Layer Unfreeze   | HPO          | Mixture of Experts    |
+| Classifier Model | Repository   |                       |
 
 ## Contributing
 
