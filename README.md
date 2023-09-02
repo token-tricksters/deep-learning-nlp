@@ -31,16 +31,51 @@ python -u multitask_classifier.py --use_gpu --lr 1e-3 --batch_size 64
 There are a lot of parameters that can be set. To see all of them, run `python multitask_classifier.py --help`. The most
 important ones are:
 
-| Parameter             | Description                                                    |
-|-----------------------|----------------------------------------------------------------|
-| `--use_gpu`           | Whether to use the GPU.                                        |
-| `--lr`                | Learning rate.                                                 |
-| `--batch_size`        | Batch size.                                                    |
-| `--epochs`            | Number of epochs.                                              |
-| `--optimizer`         | Optimizer to use. Options are `AdamW` and `SophiaW`.           |
-| `--scheduler`         | Learning rate scheduler to use.                                |
-| `--unfreeze_interval` | Number of epochs until the next BERT layer is unfrozen         |
-| `--additional_input`  | Activates the usage for POS and NER tags for the input of BERT |
+| Parameter                  | Description                                                                                             |
+|----------------------------|---------------------------------------------------------------------------------------------------------|
+| `--use_gpu`                | Whether to use the GPU.                                                                                 |
+| `--lr`                     | Learning rate.                                                                                          |
+| `--batch_size`             | Batch size.                                                                                             |
+| `--epochs`                 | Number of epochs.                                                                                       |
+| `--optimizer`              | Optimizer to use. Options are `AdamW`, `SophiaH`, and `SophiaHref`.                                      |
+| `--scheduler`              | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.                             |
+| `--unfreeze_interval`      | Number of epochs until the next BERT layer is unfrozen                                                  |
+| `--additional_input`       | Activates the usage for POS and NER tags for the input of BERT                                          |
+| `--sst_train`              | Path to SST train data.                                                                                 |
+| `--sst_dev`                | Path to SST dev data.                                                                                   |
+| `--sst_test`               | Path to SST test data.                                                                                  |
+| `--para_train`             | Path to paraphrase train data.                                                                          |
+| `--para_dev`               | Path to paraphrase dev data.                                                                            |
+| `--para_test`              | Path to paraphrase test data.                                                                           |
+| `--sts_train`              | Path to STS train data.                                                                                 |
+| `--sts_dev`                | Path to STS dev data.                                                                                   |
+| `--sts_test`               | Path to STS test data.                                                                                  |
+| `--seed`                   | Random seed for reproducibility.                                                                        |
+| `--option`                 | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`).                          |
+| `--profiler`               | Activates the profiler.                                                                                 |
+| `--sts`                    | Activates the STS dataset.                                                                              |
+| `--sst`                    | Activates the SST dataset.                                                                              |
+| `--para`                   | Activates the paraphrase dataset.                                                                       |
+| `--sst_dev_out`            | Path to save SST dev predictions.                                                                       |
+| `--sst_test_out`           | Path to save SST test predictions.                                                                      |
+| `--para_dev_out`           | Path to save paraphrase dev predictions.                                                                |
+| `--para_test_out`          | Path to save paraphrase test predictions.                                                               |
+| `--sts_dev_out`            | Path to save STS dev predictions.                                                                       |
+| `--sts_test_out`           | Path to save STS test predictions.                                                                      |
+| `--logdir`                 | Directory for logging.                                                                                  |
+| `--rho`                    | rho for SophiaH optimizer.                                                                              |
+| `--weight_decay`           | Weight decay for optimizer.                                                                             |
+| `--hess_interval`          | Hessian update interval for SophiaH.                                                                    |
+| `--smoketest`              | Runs a smoke test.                                                                                      |
+| `--hidden_dropout_prob`    | Dropout probability for hidden layers.                                                                  |
+| `--clip`                   | Gradient clipping value.                                                                                |
+| `--samples_per_epoch`      | Number of samples per epoch.                                                                            |
+| `--checkpoint`             | Path to a checkpoint to resume from.                                                                    |
+| `--tensorboard_subfolder`  | Subfolder for TensorBoard logs.                                                                         |
+| `--local_files_only`       | Use only local files.                                                                                   |
+| `--hpo`                    | Activate hyperparameter optimization.                                                                   |
+| `--hpo_trials`             | Number of trials for hyperparameter optimization.                                                       |
+
 
 > 📋 Describe how to train the models, with example commands on how to train the models in your paper, including the full
 > training procedure and appropriate hyperparameters.
