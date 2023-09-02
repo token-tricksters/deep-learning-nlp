@@ -172,33 +172,30 @@ performance being about the same as the baseline (AdamW), which is what we obser
 
 ---
 
-### Data Augmentation
+### Synthetic Data Augmentation
 
-In light of emerging advancements in imitation learning—particularly the success of small language models in approximating the performance of larger, proprietary models (Taori et al., 2023)—this study investigates the efficacy of synthetic data for enhancing multitask classification algorithms. The focus of our proof-of-concept experiment is on sentiment classification, a task that presents significant challenges. We explore three methodologies for synthetic data generation: 1) constructing a language model from the ground up, 2) finetuning an existing language model, and 3) employing prompts for data generation.
+Given recent advances in imitation learning - in particular, the demonstrated ability of compact language models to emulate the performance of their larger, proprietary counterparts ([Alpaca: A Strong, Replicable Instruction-Following Model](https://crfm.stanford.edu/2023/03/13/alpaca.html)) - we investigated the impact of synthetic data in improving multitask classification models. Our focus lied on sentiment classification, where we were the weakest and had the fewest training examples.
 
-#### De Novo Transformer-based Language Model
+#### Transformer Architecture-Based Language Model Generation
 
-Constructing a transformer-based language model from scratch yielded data of suboptimal quality, characterized by out-of-distribution samples. The model manifested difficulties in assimilating the available training data, often resulting in incoherent outputs.
+A custom small language model produced suboptimal data at the basic level, displaying instances beyond its distribution, and struggled to utilise the training data, resulting in unusual outputs.
 
-#### Finetuning GPT-2
+#### GPT-2 Finetuning
 
-We employed the GPT-2 medium model variant by OpenAI (Radford et al., 2018) and finetuned it using a constant learning rate on the sentiment classification training set. This finetuned model was then used to generate 100,000 training samples, an increase by an order of magnitude compared to the original dataset. While these samples were more contextually relevant compared to those from the first method, they still exhibited coherence issues to some extent.
+We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)) and adapted it with a consistent learning rate using our sentiment classification training dataset. This modified model subsequently produced 100,000 training occurrences, which were ten times greater than the primary dataset. Although the produced illustrations were more significant to the context than the earlier technique, they still had infrequent coherence discrepancies.
 
-#### Prompt-based Data Generation
-For our third approach, we utilized a custom prompt to solicit synthetic data from ChatGPT-4:
+#### Prompt-Driven Data Generation
 
-```
-For building a sentiment classifier, I need highly educational examples. I will provide you with some examples, please continue to give me examples on the same level of quality and average complexity. Please also respect the quirky formatting and return them as tab-seperated:
+For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
+The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
 
-shuf -n 15 ids-sst-train.csv | awk -F'\t' '{print $3 "\t" $4}'
-```
-The data sampled by GPT4 is of the highest quality available. However, due to the closed-source nature of GPT4 and the limitations opposed on the chatGPT premium plan, only a limited quantity of this data was able to be acquired (~500 examples)
+#### Evaluation
 
-#### Results
-None of the above methods improved the model performance beyond the capabilities of our best model. Notably, using 100.000 synthetic examples from GPT2, our model did not overfit to the train set, even after 30 epochs. It can be argued that the model may not be converged, however validation loss ceised to improve further so training was ended without full convergence achieved.
+It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to stop further training.
 
-#### Disclaimer: Synthetic data
-It is important to note that only the first method assures complete freedom from data contamination. GPT-2 and GPT-4 models were trained on undisclosed datasets, raising the potential issue of data overlap with our sentiment classification dataset. While it is improbable that these models would replicate specific test set examples, the caveat remains. Our exploration of these methods should be interpreted as an educational exercise, and we make no claims of superior model performance.
+#### Caution: Synthetic Data
+
+OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential concerns about data overlaps with our sentiment classification set. Even though these models are unlikely to reproduce particular test set instances, the concern remains and should be addressed.
 
 ---
 
@@ -274,7 +271,7 @@ We used the default datasets provided for training and validation with no modifi
 
 The baseline for our comparisons includes most smaller improvements to the BERT model listed above. The baseline model is further described in the [Results](#results) section. The baseline model was trained for 10 epochs at 10.000 samples per epoch.
 
-The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training time for the baseline model was approximately 2 hours.
+The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training time for the baseline model was approximately 1 hour.
 
 We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
 
@@ -293,7 +290,7 @@ the same semantic meaning.
 
 | Model name       | Parameters   | Accuracy |
 |------------------|--------------|----------|
-| My awesome model | SophiaW 1e-3 | 99.99%   |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 85.3%   |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -305,7 +302,7 @@ neutral, somewhat positive, or positive.
 
 | Model name       | Parameters   | Accuracy |
 |------------------|--------------|----------|
-| My awesome model | SophiaW 1e-3 | 99.99%   |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%   |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -316,18 +313,7 @@ allows for 5 degrees of similarity.
 
 | Model name       | Parameters   | Pearson Correlation |
 |------------------|--------------|---------------------|
-| My awesome model | SophiaW 1e-3 | 0.9                 |
-
-> 📋 Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main
-> result is a figure, include that figure and link to the command or notebook to reproduce it.
-
-## Comparisons
-
-### [Paraphrase Identification](https://paperswithcode.com/paper/spanbert-improving-pre-training-by)
-
-### [Sentiment Classification](https://paperswithcode.com/paper/fine-grained-sentiment-classification-using)
-
-### [Semantic Textual Similarity](https://paperswithcode.com/paper/albert-a-lite-bert-for-self-supervised)
+| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87               |
 
 ## PyTorch Profiler Results
 <details>
@@ -457,6 +443,16 @@ access to a GPU node with an A100 GPU. This is for testing purposes only and sho
 ````sh
 srun -p grete:shared --pty -G A100:1 --interactive bash
 ````
+
+## AI-Usage Card
+
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide the following AI-Usage Card. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
+
+
+![]
+
+
+[AI-Usage Card](./AI-Usage-Card.pdf)
 
 ## Acknowledgement
 
