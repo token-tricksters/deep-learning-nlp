@@ -62,7 +62,7 @@ important ones are:
 | `--hpo_trials`          | Number of trials for hyperparameter optimization.                              |
 | `--hpo`                 | Activate hyperparameter optimization.                                          |
 | `--lr`                  | Learning rate.                                                                 |
-| `--optimizer`           | Optimizer to use. Options are `AdamW` and `SophiaH`.            |
+| `--optimizer`           | Optimizer to use. Options are `AdamW` and `SophiaH`.                           |
 | `--option`              | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
 | `--rho`                 | rho for SophiaH optimizer.                                                     |
 | `--samples_per_epoch`   | Number of samples per epoch.                                                   |
@@ -88,7 +88,8 @@ three tasks of paraphrase identification, sentiment classification, and semantic
 
 ### POS and NER Tag Embeddings
 
-Based on Bojanowski, et al. ([Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606)), which showed that the
+Based on Bojanowski, et al. ([Enriching Word Vectors with Subword Information](https://arxiv.org/abs/1607.04606)), which
+showed that the
 addition of subword information to word embeddings can improve performance on downstream tasks, we extended our approach
 by incorporating Part-of-Speech (POS) and Named Entity Recognition (NER) tag embeddings into the input representation.
 The primary goal was to investigate whether the inclusion of linguistic information could lead to improved performance
@@ -119,7 +120,8 @@ tags.
 #### Conclusion
 
 Although the integration of POS and NER tag embeddings initially seemed promising, our experiments showed that this
-approach did not contribute significantly to the performance across the tasks. The training process was noticeably slowed down by the
+approach did not contribute significantly to the performance across the tasks. The training process was noticeably
+slowed down by the
 inclusion of tag embeddings.
 
 As a result, we concluded that the benefits of incorporating POS and NER tags were not substantial enough to justify the
@@ -128,7 +130,8 @@ while minimising the associated computational overhead.
 
 One possible explanation for the lack of performance improvements could be that the BERT model already encodes some
 syntactic information in its word
-embeddings. Hewitt and Manning ([A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf))
+embeddings. Hewitt and
+Manning ([A Structural Probe for Finding Syntax in Word Representations](https://aclanthology.org/N19-1419.pdf))
 showed that some syntactic information is already encoded in the word embeddings of pretrained BERT models, which could
 explain why the inclusion of POS and NER tags did not lead to performance improvements.
 
@@ -162,12 +165,15 @@ a Hessian vector product, which is implemented in most modern deep learning fram
 
 #### Convergence
 
-While the implementation of this novel optimizer was a challenge, in the end, we were able to implement it **successfully** and the model was able to train well. However, we did not observe any improvements in performance. The optimizer did
+While the implementation of this novel optimizer was a challenge, in the end, we were able to implement it *
+*successfully** and the model was able to train well. However, we did not observe any improvements in performance. The
+optimizer did
 not converge faster than AdamW, and the performance was comparable. This could be due to the fact that the optimizer was
 designed for pre-training language models, which is a different task to ours.
 
 A more recent paper studing different training algorithms for transformer-based language
-models by Kaddour et al. ([No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf))
+models by Kaddour et
+al. ([No Train No Gain: Revisiting Efficient Training Algorithms For Transformer-based Language Models](https://arxiv.org/pdf/2307.06440.pdf))
 comes to the conclusion that the training algorithm gains vanish with a fully decayed learning rate. They show
 performance being about the same as the baseline (AdamW), which is what we observed.
 
@@ -175,28 +181,44 @@ performance being about the same as the baseline (AdamW), which is what we obser
 
 ### Synthetic Data Augmentation
 
-Given recent advances in imitation learning - in particular, the demonstrated ability of compact language models to emulate the performance of their larger, proprietary counterparts ([Alpaca: A Strong, Replicable Instruction-Following Model](https://crfm.stanford.edu/2023/03/13/alpaca.html)) - we investigated the impact of synthetic data in improving multitask classification models. Our focus lied on sentiment classification, where we were the weakest and had the fewest training examples.
+Given recent advances in imitation learning - in particular, the demonstrated ability of compact language models to
+emulate the performance of their larger, proprietary
+counterparts ([Alpaca: A Strong, Replicable Instruction-Following Model](https://crfm.stanford.edu/2023/03/13/alpaca.html)) -
+we investigated the impact of synthetic data in improving multitask classification models. Our focus lied on sentiment
+classification, where we were the weakest and had the fewest training examples.
 
 #### Transformer Architecture-Based Language Model Generation
 
-A custom small language model produced suboptimal data at the basic level, displaying instances beyond its distribution, and struggled to utilise the training data, resulting in unusual outputs.
+A custom small language model produced suboptimal data at the basic level, displaying instances beyond its distribution,
+and struggled to utilise the training data, resulting in unusual outputs.
 
 #### GPT-2 Finetuning
 
-We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)) and adapted it with a consistent learning rate using our sentiment classification training dataset. This modified model subsequently produced 100,000 training occurrences, which were ten times greater than the primary dataset. Although the produced illustrations were more significant to the context than the earlier technique, they still had infrequent coherence discrepancies.
+We employed OpenAI's GPT-2 medium model
+variant ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf))
+and adapted it with a consistent learning rate using our sentiment classification training dataset. This modified model
+subsequently produced 100,000 training occurrences, which were ten times greater than the primary dataset. Although the
+produced illustrations were more significant to the context than the earlier technique, they still had infrequent
+coherence discrepancies.
 
 #### Prompt-Driven Data Generation
 
 For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
-The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
+The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances)
+due to ChatGPT's limitations and GPT-4's confidential nature.
 
 #### Results with Synthetic Data
 
-It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to stop further training.
+It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic
+instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already
+achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to
+stop further training.
 
 #### Caution: Synthetic Data
 
-OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential concerns about data overlaps with our sentiment classification set. Even though these models are unlikely to reproduce particular test set instances, the concern remains and should be addressed.
+OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential concerns about data overlaps with our
+sentiment classification set. Even though these models are unlikely to reproduce particular test set instances, the
+concern remains and should be addressed.
 
 ---
 
@@ -246,7 +268,8 @@ between 0 and 5, providing an estimate of how semantically similar the two sente
 #### Layer Unfreeze
 
 Layer unfreezing is a technique employed during fine-tuning large pre-trained models like BERT. The idea behind
-this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers are trained while the bottom layers are frozen. As training progresses, more layers are incrementally
+this method is to gradually unfreeze layers of the model during the training process. Initially, the top layers are
+trained while the bottom layers are frozen. As training progresses, more layers are incrementally
 unfrozen, allowing for deeper layers of the model to be adjusted.
 
 One of the motivations to use layer unfreezing is to prevent *catastrophic forgetting*—a phenomenon where the model
@@ -255,39 +278,63 @@ task ([Howard and Ruder](https://arxiv.org/abs/1801.06146)). By incrementally un
 preserve valuable pretrained representations in the earlier layers while allowing the model to adapt to the new task.
 
 In our implementation, we saw a decrease in performance. One possible
-reason for this could be the interaction between the layer thaw schedule and the learning rate scheduler (plateau). As the
+reason for this could be the interaction between the layer thaw schedule and the learning rate scheduler (plateau). As
+the
 learning rate scheduler reduced the learning rate, not all layers were yet unfrozen. This mismatch may have hindered
-the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from the
+the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from
+the
 unfreezing layers may have been offset by this unintended interaction.
 
 #### Mixture of Experts
 
-Inspired by suggestions that GPT-4 uses a Mixture of Experts (MoE) structure, we also investigated the possibility of integrating MoE into our multitasking classification model. Unlike traditional, single-piece structures, the MoE design is made up of multiple of specialised "expert" sub-models, each adjusted to handle a different section of the data range.
+Inspired by suggestions that GPT-4 uses a Mixture of Experts (MoE) structure, we also investigated the possibility of
+integrating MoE into our multitasking classification model. Unlike traditional, single-piece structures, the MoE design
+is made up of multiple of specialised "expert" sub-models, each adjusted to handle a different section of the data
+range.
 
-Our use of the MoE model includes three expert sub-models, each using a independent BERT architecture. Also, we use a fourth BERT model for three-way classification, which acts as the gating mechanism for the group.
-Two types of gating were studied - Soft Gate, which employs a Softmax function to consider the contributions of each expert, and Hard Gate, which only permits the expert model with the highest score to affect the final prediction.
+Our use of the MoE model includes three expert sub-models, each using a independent BERT architecture. Also, we use a
+fourth BERT model for three-way classification, which acts as the gating mechanism for the group.
+Two types of gating were studied - Soft Gate, which employs a Softmax function to consider the contributions of each
+expert, and Hard Gate, which only permits the expert model with the highest score to affect the final prediction.
 
-Despite the theoretical benefits of a MoE approach, our experimental findings did not result in any enhancements in performance over our top-performing standard models and we quickly abandoned the idea.
+Despite the theoretical benefits of a MoE approach, our experimental findings did not result in any enhancements in
+performance over our top-performing standard models and we quickly abandoned the idea.
 
 #### Automatic Mixed Precision
 
-The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
+The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This
+feature changes the precision of the model's weights and activations during training. The model was trained
+in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts
+the model parameters. This reduces the memory usage and speeds up training.
 
 ## Experiments
 
 We used the default datasets provided for training and validation with no modifications.
 
-The baseline for our comparisons includes most smaller improvements to the BERT model listed above. The baseline model is further described in the [Results](#results) section. The baseline model was trained for 10 epochs at 10.000 samples per epoch.
+The baseline for our comparisons includes most smaller improvements to the BERT model listed above. The baseline model
+is further described in the [Results](#results) section. The baseline model was trained for 10 epochs at 10.000 samples
+per epoch.
 
-The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training time for the baseline model was approximately 1 hour.
+The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training
+time for the baseline model was approximately 1 hour.
 
-We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
+We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to
+efficiently explore the hyperparameter space and find the best hyperparameters for our model. We
+used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the
+hyperparameter space
+and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html)
+as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done
+to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model
+to the training data.
 
-The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
+The trained models were evaluated on the validation set. The best model was selected based on the validation results ('
+dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment
+classification, and Pearson correlation for semantic textual similarity.
 
 ## Results
 
-As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
+As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in
+our hyperparameter search and provided a good starting point for further improvements.
 
 - learning rate: `8e-5`
 - scheduler: `ReduceLROnPlateau`
@@ -295,7 +342,8 @@ As a Baseline of our model we chose the following hyperparameters. These showed 
 - clip norm: `0.25`
 - batch size: `64`
 
-This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch.
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at
+10.000 samples per epoch.
 Our multitask model achieves the following performance on:
 
 ### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
@@ -305,12 +353,12 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name       | Parameters   | Accuracy |
-|------------------|--------------|----------|
-|data2Vec| State-of-the-art single task model|92.4%|
-| Baseline |  | 87.0%    |
-| Tagging    | `--additional_input`            | 86.6%    |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 85.3%   |
+| Model name | Parameters                         | Accuracy | 
+|------------|------------------------------------|----------|
+| data2Vec   | State-of-the-art single task model | 92.4%    |
+| Baseline   |                                    | 87.0%    |
+| Tagging    | `--additional_input`               | 86.6%    |
+| SophiaH    | `--lr 4e-4 --optimizer sophiah`    | 85.3%    |                              
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -319,13 +367,13 @@ opinion in a text is positive, negative, or neutral). Sentiment analysis can be 
 determine individual feelings towards particular products, politicians, or within news reports.
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
-                            |
-| Model name       | Parameters   | Accuracy |
+|
+| Model name | Parameters | Accuracy |
 |------------------|--------------|----------|
-|Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8%    |  
-| Tagging    | `--additional_input`            | 50.4%    |
-| Baseline |  | 49.4%    |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4%    |
+|Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8% |  
+| Tagging | `--additional_input`            | 50.4% |
+| Baseline | | 49.4% |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4% |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -334,12 +382,12 @@ more similar than others; STS seeks to measure the degree of semantic equivalenc
 et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
 allows for 5 degrees of similarity.
 
-| Model name       | Parameters   | Pearson Correlation |
-|------------------|--------------|--------------------|
-|MT-DNN-SMART| State-of-the-art single task model |0.929|
-| Tagging    | `--additional_input`            | 0.872                |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 0.870              |
-| Baseline |  | 0.866                                            |
+| Model name   | Parameters                         | Pearson Correlation |
+|--------------|------------------------------------|---------------------|
+| MT-DNN-SMART | State-of-the-art single task model | 0.929               |
+| Tagging      | `--additional_input`               | 0.872               |
+| SophiaH      | `--lr 4e-4 --optimizer sophiah`    | 0.870               |
+| Baseline     |                                    | 0.866               |                              
 
 ## PyTorch Profiler Results
 
@@ -368,19 +416,22 @@ We utilized the<tt>pytorch_profiler</tt> integrated with TensorBoard to gain ins
 
 ### Insights
 
-The profiler results show how the model's calculations are divided. 64.35% of the execution time is taken up by GPU kernel operations, which means that most of the heavy lifting is done on the GPU. CPU-related tasks take up about a quarter (26.12%) of the total execution time. Tasks like `Memcpy` and `Memset` barely affect performance.
+The profiler results show how the model's calculations are divided. 64.35% of the execution time is taken up by GPU
+kernel operations, which means that most of the heavy lifting is done on the GPU. CPU-related tasks take up about a
+quarter (26.12%) of the total execution time. Tasks like `Memcpy` and `Memset` barely affect performance.
 
-Given the GPU usage rate of 64.35% and the projected SM effectiveness, there could be space for improvement in the future. Improving kernel functions or restructuring model operations could increase overall performance.
+Given the GPU usage rate of 64.35% and the projected SM effectiveness, there could be space for improvement in the
+future. Improving kernel functions or restructuring model operations could increase overall performance.
 
 </details>
 
 ## Contributors
 
-| Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus |
-|------------------|--------------|-----------------------|
-| Tagging          | Sophia Optimizer       | Synthetic Data        |
-| Layer Unfreeze   | Hyperparameter Tuning          |     |
-| Classifier Model | Repository   |                       |
+| Lars Kaesberg    | Niklas Bauer          | Constantin Dalinghaus |
+|------------------|-----------------------|-----------------------|
+| Tagging          | Sophia Optimizer      | Synthetic Data        |
+| Layer Unfreeze   | Hyperparameter Tuning |                       |
+| Classifier Model | Repository            |                       |
 
 ## Contributing
 
@@ -467,7 +518,8 @@ srun -p grete:shared --pty -G A100:1 --interactive bash
 
 ## AI-Usage Card
 
-Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our [AI-Usage Card](./AI-Usage-Card.pdf/). The card is based on [https://ai-cards.org/](https://ai-cards.org/).
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide
+our [AI-Usage Card](./AI-Usage-Card.pdf/). The card is based on [https://ai-cards.org/](https://ai-cards.org/).
 
 ## Acknowledgement
 

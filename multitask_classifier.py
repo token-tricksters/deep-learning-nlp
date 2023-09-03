@@ -397,10 +397,23 @@ def train_multitask(args):
     else:
         raise NotImplementedError(f"Optimizer {args.optimizer} not implemented")
 
+    if args.separate_optimizers:
+        optimizer_sts = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+        optimizer_para = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+        optimizer_sst = AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+
+        scheduler_sts = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_sts, "max", patience=4)
+        scheduler_para = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer_para, "max", patience=4
+        )
+        scheduler_sst = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_sst, "max", patience=4)
+
     if args.scheduler == "plateau":
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=2)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", patience=5)
     elif args.scheduler == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 1, 1)
+    elif args.scheduler == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.1)
     else:
         scheduler = None
 
@@ -522,14 +535,33 @@ def train_multitask(args):
             # Combined Loss
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
-            full_loss.backward(create_graph=True if "sophiah" in args.optimizer else False)
+            full_loss.backward(
+                create_graph=True if "sophiah" in args.optimizer else False,
+                retain_graph=True if args.separate_optimizers else False,
+            )
 
             # Clip the gradients
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             # Update the parameters
-            optimizer.step()
-            optimizer.zero_grad(set_to_none=True)
+            if args.separate_optimizers:
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+
+                optimizer_sts.zero_grad()
+                sts_loss.backward(retain_graph=True)
+                optimizer_sts.step()
+
+                optimizer_para.zero_grad()
+                para_loss.backward(retain_graph=True)
+                optimizer_para.step()
+
+                optimizer_sst.zero_grad()
+                sst_loss.backward()
+                optimizer_sst.step()
+            else:
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
 
             train_loss += full_loss.item()
             num_batches += 1
@@ -593,7 +625,14 @@ def train_multitask(args):
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
 
+        scheduler_sts.step(sts_dev_acc)
+        scheduler_para.step(para_dev_acc)
+        scheduler_sst.step(sst_dev_acc)
+
         writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/sts", optimizer_sts.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/para", optimizer_para.param_groups[0]["lr"], epoch)
+        writer.add_scalar("lr/sst", optimizer_sst.param_groups[0]["lr"], epoch)
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
@@ -710,8 +749,9 @@ def get_args():
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--tensorboard_subfolder", type=str, default=None)
     parser.add_argument("--local_files_only", action="store_true")
+    parser.add_argument("--separate_optimizers", action="store_true")
     parser.add_argument(
-        "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "none")
+        "--scheduler", type=str, default="plateau", choices=("plateau", "cosine", "step", "none")
     )
 
     parser.add_argument("--hpo", action="store_true", help="Activate hyperparameter optimization")
