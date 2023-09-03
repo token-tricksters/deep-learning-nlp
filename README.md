@@ -51,20 +51,17 @@ There are a lot of parameters that can be set. To see all of them, run `python m
 important ones are:
 
 | Parameter               | Description                                                                    |
-|-------------------------|--------------------------------------------------------------------------------|
+| ----------------------- | ------------------------------------------------------------------------------ |
 | `--additional_input`    | Activates the usage for POS and NER tags for the input of BERT                 |
 | `--batch_size`          | Batch size.                                                                    |
-| `--checkpoint`          | Path to a checkpoint to resume from.                                           |
 | `--clip`                | Gradient clipping value.                                                       |
 | `--epochs`              | Number of epochs.                                                              |
-| `--hess_interval`       | Hessian update interval for SophiaH.                                           |
 | `--hidden_dropout_prob` | Dropout probability for hidden layers.                                         |
 | `--hpo_trials`          | Number of trials for hyperparameter optimization.                              |
 | `--hpo`                 | Activate hyperparameter optimization.                                          |
 | `--lr`                  | Learning rate.                                                                 |
-| `--optimizer`           | Optimizer to use. Options are `AdamW` and `SophiaH`.            |
+| `--optimizer`           | Optimizer to use. Options are `AdamW` and `SophiaH`.                           |
 | `--option`              | Determines if BERT parameters are frozen (`pretrain`) or updated (`finetune`). |
-| `--rho`                 | rho for SophiaH optimizer.                                                     |
 | `--samples_per_epoch`   | Number of samples per epoch.                                                   |
 | `--scheduler`           | Learning rate scheduler to use. Options are `plateau`, `cosine`, and `none`.   |
 | `--unfreeze_interval`   | Number of epochs until the next BERT layer is unfrozen                         |
@@ -174,15 +171,11 @@ performance being about the same as the baseline (AdamW), which is what we obser
 
 Given recent advances in imitation learning - in particular, the demonstrated ability of compact language models to emulate the performance of their larger, proprietary counterparts ([Alpaca: A Strong, Replicable Instruction-Following Model](https://crfm.stanford.edu/2023/03/13/alpaca.html)) - we investigated the impact of synthetic data in improving multitask classification models. Our focus lied on sentiment classification, where we were the weakest and had the fewest training examples.
 
-#### Transformer Architecture-Based Language Model Generation
+#### LLM Generation
 
 A custom small language model produced suboptimal data at the basic level, displaying instances beyond its distribution, and struggled to utilise the training data, resulting in unusual outputs.
 
-#### GPT-2 Finetuning
-
 We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)) and adapted it with a consistent learning rate using our sentiment classification training dataset. This modified model subsequently produced 100,000 training occurrences, which were ten times greater than the primary dataset. Although the produced illustrations were more significant to the context than the earlier technique, they still had infrequent coherence discrepancies.
-
-#### Prompt-Driven Data Generation
 
 For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
 The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
@@ -193,11 +186,14 @@ OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential
 
 #### Results with Synthetic Data
 
-It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. However, we believe that the synthetic data augmentation approach has potential and could be further explored in future research.
+It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100.000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. However, we believe that the synthetic data augmentation approach has potential and could be further explored in future research.
 
 ---
 
-### More Details
+### Details
+
+<details>
+  <summary>More about the model architecture.</summary>
 
 #### Classifier
 
@@ -270,6 +266,8 @@ Despite the theoretical benefits of a MoE approach, our experimental findings di
 
 The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
 
+</details>
+
 ## Experiments
 
 We used the default datasets provided for training and validation with no modifications.
@@ -286,13 +284,15 @@ The trained models were evaluated on the validation set. The best model was sele
 
 As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
 
+- mode: `finetune`
+- epochs: `20`
 - learning rate: `8e-5`
 - scheduler: `ReduceLROnPlateau`
 - optimizer: `AdamW`
 - clip norm: `0.25`
 - batch size: `64`
 
-This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch until convergence.
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch until convergence. For further hyperparameter choices, see the default values in the [training script](./multitask_classifier.py).
 
 Our multitask model achieves the following performance on:
 
@@ -303,13 +303,13 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name       | Parameters   | Accuracy |
-|------------------|--------------|----------|
-|data2Vec| State-of-the-art single task model|92.4%|
-| Baseline |  | 87.0%    |
-| Tagging    | `--additional_input`            | 86.6%    |
-| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5% |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 85.3%   |
+| Model name     | Parameters                                | Accuracy |
+| -------------- | ----------------------------------------- | -------- |
+| data2Vec       | State-of-the-art single task model        | 92.4%    |
+| Baseline       |                                           | 87.0%    |
+| Tagging        | `--additional_input`                      | 86.6%    |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5%    |
+| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 85.3%    |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -319,13 +319,13 @@ determine individual feelings towards particular products, politicians, or withi
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
 
-| Model name       | Parameters   | Accuracy |
-|------------------|--------------|----------|
-|Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8%    |  
-| Tagging    | `--additional_input`            | 50.4%    |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4%    |
-| Baseline |  | 49.4%    |
-| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 47.6% |
+| Model name                      | Parameters                                | Accuracy |
+| ------------------------------- | ----------------------------------------- | -------- |
+| Heinsen Routing + RoBERTa Large | State-of-the-art single task model        | 59.8%    |
+| Tagging                         | `--additional_input`                      | 50.4%    |
+| SophiaH                         | `--lr 4e-4 --optimizer sophiah`           | 49.4%    |
+| Baseline                        |                                           | 49.4%    |
+| Synthetic Data                  | `--sst_train data/ids-sst-train-syn3.csv` | 47.6%    |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -334,13 +334,13 @@ more similar than others; STS seeks to measure the degree of semantic equivalenc
 et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
 allows for 5 degrees of similarity.
 
-| Model name       | Parameters   | Pearson Correlation |
-|------------------|--------------|--------------------|
-|MT-DNN-SMART| State-of-the-art single task model |0.929|
-| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875 |
-| Tagging    | `--additional_input`            | 0.872                |
-| SophiaH | `--lr 4e-4 --optimizer sophiah` | 0.870              |
-| Baseline |  | 0.866                                            |
+| Model name     | Parameters                                | Pearson Correlation |
+| -------------- | ----------------------------------------- | ------------------- |
+| MT-DNN-SMART   | State-of-the-art single task model        | 0.929               |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875               |
+| Tagging        | `--additional_input`                      | 0.872               |
+| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 0.870               |
+| Baseline       |                                           | 0.866               |
 
 ## PyTorch Profiler Results
 
@@ -359,7 +359,7 @@ We utilized the<tt>pytorch_profiler</tt> integrated with TensorBoard to gain ins
 ### Execution Breakdown
 
 | Category          | Time Duration (us) | Percentage (%) |
-|-------------------|--------------------|----------------|
+| ----------------- | ------------------ | -------------- |
 | Average Step Time | 2,199,623          | 100            |
 | GPU Kernel        | 1,415,549          | 64.35          |
 | Memcpy            | 3,064              | 0.14           |
@@ -377,11 +377,11 @@ Given the GPU usage rate of 64.35% and the projected SM effectiveness, there cou
 
 ## Contributors
 
-| Lars Kaesberg    | Niklas Bauer | Constantin Dalinghaus |
-|------------------|--------------|-----------------------|
-| Tagging          | Sophia Optimizer       | Synthetic Data        |
-| Layer Unfreeze   | Hyperparameter Tuning          |     |
-| Classifier Model | Repository   |                       |
+| Lars Kaesberg    | Niklas Bauer          | Constantin Dalinghaus |
+| ---------------- | --------------------- | --------------------- |
+| Tagging          | Sophia Optimizer      | Synthetic Data        |
+| Layer Unfreeze   | Hyperparameter Tuning |                       |
+| Classifier Model | Repository            |                       |
 
 ## Contributing
 
