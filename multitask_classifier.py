@@ -536,8 +536,7 @@ def train_multitask(args):
             # Can also weight the losses
             full_loss = sts_loss + para_loss + sst_loss
             full_loss.backward(
-                create_graph=True if "sophiah" in args.optimizer else False,
-                retain_graph=True if args.separate_optimizers else False,
+                create_graph=True if "sophiah" in args.optimizer else False, retain_graph=True
             )
 
             # Clip the gradients
