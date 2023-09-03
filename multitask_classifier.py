@@ -624,14 +624,15 @@ def train_multitask(args):
         if args.scheduler == "plateau":
             scheduler.step(dev_acc)
 
-        scheduler_sts.step(sts_dev_acc)
-        scheduler_para.step(para_dev_acc)
-        scheduler_sst.step(sst_dev_acc)
+        if args.separate_optimizers:
+            scheduler_sts.step(sts_dev_acc)
+            scheduler_para.step(para_dev_acc)
+            scheduler_sst.step(sst_dev_acc)
+            writer.add_scalar("lr/sts", optimizer_sts.param_groups[0]["lr"], epoch)
+            writer.add_scalar("lr/para", optimizer_para.param_groups[0]["lr"], epoch)
+            writer.add_scalar("lr/sst", optimizer_sst.param_groups[0]["lr"], epoch)
 
         writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch)
-        writer.add_scalar("lr/sts", optimizer_sts.param_groups[0]["lr"], epoch)
-        writer.add_scalar("lr/para", optimizer_para.param_groups[0]["lr"], epoch)
-        writer.add_scalar("lr/sst", optimizer_sst.param_groups[0]["lr"], epoch)
         writer.add_scalar("acc/train/Epochs", train_acc, epoch)
         writer.add_scalar("acc/dev/Epochs", dev_acc, epoch)
         print(
