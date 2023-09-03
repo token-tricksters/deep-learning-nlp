@@ -1,19 +1,20 @@
 # DNLP SS23 Final Project - Multitask BERT
-    
+
 <div align="right">
 <u> Token Tricksters </u> <br/>
 Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
-Sebastian Kampen <br/>
 </div>
 
 ## Introduction
-![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)
-![PyTorch 2.0](https://img.shields.io/badge/PyTorch-2.0-orange.svg)
-![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)
-![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
-![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)
+
+[![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![PyTorch 2.0](https://img.shields.io/badge/PyTorch-2.0-orange.svg)](https://pytorch.org/)
+[![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
+[![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://black.readthedocs.io/en/stable/)
+[![AI-Usage Card](https://img.shields.io/badge/AI_Usage_Card-pdf-blue.svg)](./AI-Usage-Card.pdf/)
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
@@ -31,12 +32,12 @@ task-specific classifiers.
 To install requirements, using conda, run:
 
 ```sh
-source setup.sh
+./setup.sh
 ```
 
 The script will create a new conda environment called `dnlp2` and install all required packages. The environment is
 activated with `conda activate dnlp2`.
-We use Python 3.10 and PyTorch 2.0+.
+We use Python 3.10 and PyTorch 2.0.
 
 ## Training
 
@@ -161,7 +162,7 @@ a Hessian vector product, which is implemented in most modern deep learning fram
 
 #### Convergence
 
-While the implementation of this novel optimizer was a challenge, the results were not as promised. The optimizer did
+While the implementation of this novel optimizer was a challenge, in the end, we were able to implement it **successfully** and the model was able to train well. However, we did not observe any improvements in performance. The optimizer did
 not converge faster than AdamW, and the performance was comparable. This could be due to the fact that the optimizer was
 designed for pre-training language models, which is a different task to ours.
 
@@ -189,7 +190,7 @@ We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervis
 For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
 The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
 
-#### Evaluation
+#### Results with Synthetic Data
 
 It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to stop further training.
 
@@ -260,14 +261,13 @@ the model's ability to make effective adjustments to the newly unfrozen layers. 
 unfreezing layers may have been offset by this unintended interaction.
 
 #### Mixture of Experts
-Inspired by unconfirmed reports indicating that GPT-4 employs a Mixture of Experts (MoE) architecture, our research aims to explore the feasibility and potential benefits of incorporating MoE into our multitask classification paradigm. Unlike conventional, monolithic architectures, the MoE model consists of an ensemble of specialized "expert" sub-models, each fine-tuned for handling a distinct segment of the data space.
 
-***Expert Composition***: Our implementation of the MoE model features three expert sub-models, each based on a distinct BERT architecture. Additionally, a fourth BERT model is employed to perform three-way classification, serving as the gating mechanism for the ensemble.
+Inspired by suggestions that GPT-4 uses a Mixture of Experts (MoE) structure, we also investigated the possibility of integrating MoE into our multitasking classification model. Unlike traditional, single-piece structures, the MoE design is made up of multiple of specialised "expert" sub-models, each adjusted to handle a different section of the data range.
 
-***Gating Mechanisms***: Two different types of gating were investigated—Soft Gate, which utilizes a Softmax function to weigh the contributions of each expert, and Hard Gate, which solely allows the expert model with the highest score to influence the final prediction.
+Our use of the MoE model includes three expert sub-models, each using a independent BERT architecture. Also, we use a fourth BERT model for three-way classification, which acts as the gating mechanism for the group.
+Two types of gating were studied - Soft Gate, which employs a Softmax function to consider the contributions of each expert, and Hard Gate, which only permits the expert model with the highest score to affect the final prediction.
 
-***Performance Metrics***: Despite the theoretical advantages of a MoE approach, our experimental results did not yield any performance improvements over our best-performing baseline models.
-
+Despite the theoretical benefits of a MoE approach, our experimental findings did not result in any enhancements in performance over our top-performing standard models and we quickly abandoned the idea.
 
 #### Automatic Mixed Precision
 
@@ -287,6 +287,15 @@ The trained models were evaluated on the validation set. The best model was sele
 
 ## Results
 
+As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
+
+- learning rate: `8e-5`
+- scheduler: `ReduceLROnPlateau`
+- optimizer: `AdamW`
+- clip norm: `0.25`
+- batch size: `64`
+
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch.
 Our multitask model achieves the following performance on:
 
 ### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
@@ -296,11 +305,13 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name | Parameters                    | Accuracy | Note                         |
-|------------|-------------------------------|----------|------------------------------|
-| data2Vec   |                               | 92.4%    | State-of-the-art single task |
+| Model name | Parameters                    | Accuracy | 
+|------------|-------------------------------|----------|
+| data2Vec   |                               State-of-the-art single task model|92.4%|
+| Baseline |  | 87.0%    |
+| Tagging    | `--additional_input`            | 86.6%    |
 | Tagging    | --additional_input            | 86.6%    |                              |
-| SophiaH    | --lr 4e-4 --optimizer sophiah | 85.3%    |                              |
+| SophiaH    | `--lr 4e-4 --optimizer sophiah` | 85.3%    |                              
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -309,12 +320,14 @@ opinion in a text is positive, negative, or neutral). Sentiment analysis can be 
 determine individual feelings towards particular products, politicians, or within news reports.
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
-
-| Model name       | Parameters   | Accuracy | Note                         |
-|------------------|--------------|----------|------------------------------|
-|Heinsen Routing + RoBERTa Large| | 59.8%    | State-of-the-art single task |
+                            |
+| Model name       | Parameters   | Accuracy |
+|------------------|--------------|----------|
+|Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8%    |  
+| Tagging    | `--additional_input`            | 50.4%    |
+| Baseline |  | 49.4%    |
 | Tagging    | --additional_input            | 50.4%    |                              |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%    |                              |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4%    |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -323,30 +336,29 @@ more similar than others; STS seeks to measure the degree of semantic equivalenc
 et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
 allows for 5 degrees of similarity.
 
-| Model name       | Parameters   | Pearson Correlation | Note                         |
-|------------------|--------------|---------------------|------------------------------|
-|MT-DNN-SMART| | 0.929               | State-of-the-art single task |
+| Model name       | Parameters   | Pearson Correlation |
+|------------------|--------------|---------------------|
+|MT-DNN-SMART| State-of-the-art single task model |0.929|
+| Tagging    | `--additional_input`            | 0.872                |
 | Tagging    | --additional_input            | 0.87                |                              |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87                |                              |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 0.870              |
+| Baseline |  | 0.866                |                              
 
 ## PyTorch Profiler Results
+
 <details>
-  <summary>Click me</summary>
-We utilized the `pytorch_profiler` integrated with TensorBoard to gain insights into the execution performance and resource utilization during our model's training on a GPU.
+  <summary>Click to expand.</summary>
+We utilized the<tt>pytorch_profiler</tt> integrated with TensorBoard to gain insights into the execution performance and resource utilization during our model's training on a single GPU.
 
-### Configuration Details:
-- **Number of Workers:** 1
-- **Device Type:** GPU
+### GPU Summary
 
-### GPU Summary:
 - **Model:** NVIDIA A100-SXM4-80GB
-- **Total Memory:** 79.19 GB
 - **Compute Capability:** 8.0
 - **GPU Utilization:** 64.35%
 - **Estimated SM Efficiency:** 59.55%
 - **Estimated Achieved Occupancy:** 47.89%
 
-### Execution Breakdown:
+### Execution Breakdown
 
 | Category          | Time Duration (us) | Percentage (%) |
 |-------------------|--------------------|----------------|
@@ -356,14 +368,12 @@ We utilized the `pytorch_profiler` integrated with TensorBoard to gain insights 
 | Memset            | 4,455              | 0.20           |
 | CPU Execution     | 574,478            | 26.12          |
 | Other             | 202,077            | 9.19           |
-| DataLoader        | 0                  | 0              |
-| Runtime           | 0                  | 0              |
 
-### Insights:
+### Insights
 
-The profiler results provide a detailed look into how the model's computations are distributed. A significant portion of the execution time (64.35%) is consumed by GPU kernel operations, indicating that the bulk of the computational heavy-lifting is done on the GPU. Meanwhile, CPU-related tasks took up about a quarter of the total execution time at 26.12%. Operations such as `Memcpy` and `Memset` have minimal impact on the overall performance.
+The profiler results show how the model's calculations are divided. 64.35% of the execution time is taken up by GPU kernel operations, which means that most of the heavy lifting is done on the GPU. CPU-related tasks take up about a quarter (26.12%) of the total execution time. Tasks like `Memcpy` and `Memset` barely affect performance.
 
-Given the GPU utilization rate of 64.35% and the estimated SM efficiency, there may be room for optimization in the future. Enhancing kernel functions or restructuring model operations might lead to improvements in SM efficiency and occupancy, potentially boosting overall performance.
+Given the GPU usage rate of 64.35% and the projected SM effectiveness, there could be space for improvement in the future. Improving kernel functions or restructuring model operations could increase overall performance.
 
 </details>
 
@@ -460,13 +470,7 @@ srun -p grete:shared --pty -G A100:1 --interactive bash
 
 ## AI-Usage Card
 
-Artificial Intelligence (AI) aided the development of this project. For transparency, we provide the following AI-Usage Card. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
-
-
-![]
-
-
-[AI-Usage Card](./AI-Usage-Card.pdf)
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our [AI-Usage Card](./AI-Usage-Card.pdf/). The card is based on [https://ai-cards.org/](https://ai-cards.org/).
 
 ## Acknowledgement
 
