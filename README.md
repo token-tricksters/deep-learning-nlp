@@ -261,14 +261,12 @@ unfreezing layers may have been offset by this unintended interaction.
 
 #### Mixture of Experts
 
-Inspired by unconfirmed reports indicating that GPT-4 employs a Mixture of Experts (MoE) architecture, our research aims to explore the feasibility and potential benefits of incorporating MoE into our multitask classification paradigm. Unlike conventional, monolithic architectures, the MoE model consists of an ensemble of specialized "expert" sub-models, each fine-tuned for handling a distinct segment of the data space.
+Inspired by suggestions that GPT-4 uses a Mixture of Experts (MoE) structure, we also investigated the possibility of integrating MoE into our multitasking classification model. Unlike traditional, single-piece structures, the MoE design is made up of multiple of specialised "expert" sub-models, each adjusted to handle a different section of the data range.
 
-***Expert Composition***: Our implementation of the MoE model features three expert sub-models, each based on a distinct BERT architecture. Additionally, a fourth BERT model is employed to perform three-way classification, serving as the gating mechanism for the ensemble.
+Our use of the MoE model includes three expert sub-models, each using a independent BERT architecture. Also, we use a fourth BERT model for three-way classification, which acts as the gating mechanism for the group.
+Two types of gating were studied - Soft Gate, which employs a Softmax function to consider the contributions of each expert, and Hard Gate, which only permits the expert model with the highest score to affect the final prediction.
 
-***Gating Mechanisms***: Two different types of gating were investigated—Soft Gate, which utilizes a Softmax function to weigh the contributions of each expert, and Hard Gate, which solely allows the expert model with the highest score to influence the final prediction.
-
-***Performance Metrics***: Despite the theoretical advantages of a MoE approach, our experimental results did not yield any performance improvements over our best-performing baseline models.
-
+Despite the theoretical benefits of a MoE approach, our experimental findings did not result in any enhancements in performance over our top-performing standard models and we quickly abandoned the idea.
 
 #### Automatic Mixed Precision
 
@@ -284,7 +282,7 @@ The models were trained and evaluated on the Grete cluster. The training was don
 
 We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
 
-The trained models were evaluated on the validationCard set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
+The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
 
 ## Results
 
