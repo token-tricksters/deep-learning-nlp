@@ -192,8 +192,10 @@ It's important to mention that our model didn't overfit on the training set, eve
 
 ### Details
 
+The first dataset we received for training was heavily unbalanced, with one set containing an order of magnitude more samples than the other. This imbalance can make models unfairly biased, often skewing results towards the majority class. Instead of using every available sample in each training epoch, which would be both time consuming and inefficient, we made modifications to the dataloader. In each epoch, we randomly select a fixed number of samples. This number was chosen to be 10.000, which is a good compromise between training time and performance.
+
 <details>
-  <summary>More about the model architecture.</summary>
+  <summary>A lot more about the model architecture.</summary>
 
 #### Classifier
 
