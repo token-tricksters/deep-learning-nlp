@@ -14,6 +14,7 @@ Constantin Dalinghaus <br/>
 [![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
 [![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://black.readthedocs.io/en/stable/)
+[![AI-Usage Card](https://img.shields.io/badge/AI_Usage_Card-pdf-blue.svg)](./AI-Usage-Card.pdf/)
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
@@ -466,9 +467,7 @@ srun -p grete:shared --pty -G A100:1 --interactive bash
 
 ## AI-Usage Card
 
-[![AI-Usage Card](https://img.shields.io/badge/AI_Usage_Card-pdf-blue.svg)](./AI-Usage-Card.pdf/)
-
-Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our AI-Usage Card. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our [AI-Usage Card](./AI-Usage-Card.pdf/). The card is based on [https://ai-cards.org/](https://ai-cards.org/).
 
 ## Acknowledgement
 
