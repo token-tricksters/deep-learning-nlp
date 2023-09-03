@@ -25,7 +25,7 @@ model was used as the basis for our experiments. The model was fine-tuned on the
 approach. The model was trained on the three tasks simultaneously, with a single shared BERT encoder and three separate
 task-specific classifiers.
 
-> 📋 Optional: include a graphic explaining your approach/main result
+<div align="center"><img src="https://cdn.discordapp.com/attachments/702823579405778954/1147942221530812456/image.png" alt="Hyperparameter Search to find a baseline" width="600"/></div>
 
 ## Requirements
 
@@ -277,6 +277,8 @@ The baseline for our comparisons includes most smaller improvements to the BERT 
 The models were trained and evaluated on the Grete cluster. The training was done on a single A100 GPU. The training time for the baseline model was approximately 1 hour.
 
 We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
+
+<div align="center"><img src="https://media.discordapp.net/attachments/1146522094067269715/1146523064763437096/image.png?width=1440&height=678" alt="Hyperparameter Search to find a baseline" width="600"/></div>
 
 The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
 
