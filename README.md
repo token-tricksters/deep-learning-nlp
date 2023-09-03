@@ -1,19 +1,19 @@
 # DNLP SS23 Final Project - Multitask BERT
-    
+
 <div align="right">
 <u> Token Tricksters </u> <br/>
 Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
-Sebastian Kampen <br/>
 </div>
 
 ## Introduction
-![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)
-![PyTorch 2.0](https://img.shields.io/badge/PyTorch-2.0-orange.svg)
-![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)
-![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
-![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)
+
+[![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![PyTorch 2.0](https://img.shields.io/badge/PyTorch-2.0-orange.svg)](https://pytorch.org/)
+[![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Work in Progress](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)](https://img.shields.io/badge/Status-Work%20in%20Progress-red.svg)
+[![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://black.readthedocs.io/en/stable/)
 
 This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
@@ -31,12 +31,12 @@ task-specific classifiers.
 To install requirements, using conda, run:
 
 ```sh
-source setup.sh
+./setup.sh
 ```
 
 The script will create a new conda environment called `dnlp2` and install all required packages. The environment is
 activated with `conda activate dnlp2`.
-We use Python 3.10 and PyTorch 2.0+.
+We use Python 3.10 and PyTorch 2.0.
 
 ## Training
 
@@ -259,16 +259,6 @@ learning rate scheduler reduced the learning rate, not all layers were yet unfro
 the model's ability to make effective adjustments to the newly unfrozen layers. As a result, the benefits expected from the
 unfreezing layers may have been offset by this unintended interaction.
 
-#### Mixture of Experts
-Inspired by unconfirmed reports indicating that GPT-4 employs a Mixture of Experts (MoE) architecture, our research aims to explore the feasibility and potential benefits of incorporating MoE into our multitask classification paradigm. Unlike conventional, monolithic architectures, the MoE model consists of an ensemble of specialized "expert" sub-models, each fine-tuned for handling a distinct segment of the data space.
-
-***Expert Composition***: Our implementation of the MoE model features three expert sub-models, each based on a distinct BERT architecture. Additionally, a fourth BERT model is employed to perform three-way classification, serving as the gating mechanism for the ensemble.
-
-***Gating Mechanisms***: Two different types of gating were investigated—Soft Gate, which utilizes a Softmax function to weigh the contributions of each expert, and Hard Gate, which solely allows the expert model with the highest score to influence the final prediction.
-
-***Performance Metrics***: Despite the theoretical advantages of a MoE approach, our experimental results did not yield any performance improvements over our best-performing baseline models.
-
-
 #### Automatic Mixed Precision
 
 The automatic mixed precision (AMP) feature of PyTorch was used to speed up training and reduce memory usage. This feature changes the precision of the model's weights and activations during training. The model was trained in `bfloat16` precision, which is a fast 16-bit floating point format. The AMP feature of PyTorch automatically casts the model parameters. This reduces the memory usage and speeds up training.
@@ -283,7 +273,7 @@ The models were trained and evaluated on the Grete cluster. The training was don
 
 We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyperparameter tuning. This allowed us to efficiently explore the hyperparameter space and find the best hyperparameters for our model. We used [Optuna](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.optuna.OptunaSearch.html) to search the hyperparameter space and [AsyncHyperBandScheduler](https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html) as the scheduler. The hyperparameters were searched for the whole model, not for each task individually. This was done to avoid overfitting to a single task. We searched for hyperparameters trying to minimize the overfitting of the model to the training data.
 
-The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
+The trained models were evaluated on the validationCard set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
 
 ## Results
 
@@ -327,23 +317,20 @@ allows for 5 degrees of similarity.
 | SophiaH | --lr 4e-4 --optimizer sophiah | 0.87              |                              |
 
 ## PyTorch Profiler Results
+
 <details>
-  <summary>Click me</summary>
-We utilized the `pytorch_profiler` integrated with TensorBoard to gain insights into the execution performance and resource utilization during our model's training on a GPU.
+  <summary>Click to expand.</summary>
+We utilized the<tt>pytorch_profiler</tt> integrated with TensorBoard to gain insights into the execution performance and resource utilization during our model's training on a single GPU.
 
-### Configuration Details:
-- **Number of Workers:** 1
-- **Device Type:** GPU
+### GPU Summary
 
-### GPU Summary:
 - **Model:** NVIDIA A100-SXM4-80GB
-- **Total Memory:** 79.19 GB
 - **Compute Capability:** 8.0
 - **GPU Utilization:** 64.35%
 - **Estimated SM Efficiency:** 59.55%
 - **Estimated Achieved Occupancy:** 47.89%
 
-### Execution Breakdown:
+### Execution Breakdown
 
 | Category          | Time Duration (us) | Percentage (%) |
 |-------------------|--------------------|----------------|
@@ -353,14 +340,12 @@ We utilized the `pytorch_profiler` integrated with TensorBoard to gain insights 
 | Memset            | 4,455              | 0.20           |
 | CPU Execution     | 574,478            | 26.12          |
 | Other             | 202,077            | 9.19           |
-| DataLoader        | 0                  | 0              |
-| Runtime           | 0                  | 0              |
 
-### Insights:
+### Insights
 
-The profiler results provide a detailed look into how the model's computations are distributed. A significant portion of the execution time (64.35%) is consumed by GPU kernel operations, indicating that the bulk of the computational heavy-lifting is done on the GPU. Meanwhile, CPU-related tasks took up about a quarter of the total execution time at 26.12%. Operations such as `Memcpy` and `Memset` have minimal impact on the overall performance.
+The profiler results show how the model's calculations are divided. 64.35% of the execution time is taken up by GPU kernel operations, which means that most of the heavy lifting is done on the GPU. CPU-related tasks take up about a quarter (26.12%) of the total execution time. Tasks like `Memcpy` and `Memset` barely affect performance.
 
-Given the GPU utilization rate of 64.35% and the estimated SM efficiency, there may be room for optimization in the future. Enhancing kernel functions or restructuring model operations might lead to improvements in SM efficiency and occupancy, potentially boosting overall performance.
+Given the GPU usage rate of 64.35% and the projected SM effectiveness, there could be space for improvement in the future. Improving kernel functions or restructuring model operations could increase overall performance.
 
 </details>
 
@@ -457,13 +442,9 @@ srun -p grete:shared --pty -G A100:1 --interactive bash
 
 ## AI-Usage Card
 
-Artificial Intelligence (AI) aided the development of this project. For transparency, we provide the following AI-Usage Card. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
+[![AI-Usage Card](https://img.shields.io/badge/AI_Usage_Card-pdf-blue.svg)](./AI-Usage-Card.pdf/)
 
-
-![]
-
-
-[AI-Usage Card](./AI-Usage-Card.pdf)
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our AI-Usage Card. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
 
 ## Acknowledgement
 
