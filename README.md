@@ -161,7 +161,7 @@ a Hessian vector product, which is implemented in most modern deep learning fram
 
 #### Convergence
 
-While the implementation of this novel optimizer was a challenge, the results were not as promised. The optimizer did
+While the implementation of this novel optimizer was a challenge, in the end, we were able to implement it **successfully** and the model was able to train well. However, we did not observe any improvements in performance. The optimizer did
 not converge faster than AdamW, and the performance was comparable. This could be due to the fact that the optimizer was
 designed for pre-training language models, which is a different task to ours.
 
@@ -189,7 +189,7 @@ We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervis
 For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
 The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
 
-#### Evaluation
+#### Results with Synthetic Data
 
 It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to stop further training.
 
@@ -286,6 +286,15 @@ The trained models were evaluated on the validation set. The best model was sele
 
 ## Results
 
+As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
+
+- learning rate: `8e-5`
+- scheduler: `ReduceLROnPlateau`
+- optimizer: `AdamW`
+- clip norm: `0.25`
+- batch size: `64`
+
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch.
 Our multitask model achieves the following performance on:
 
 ### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
@@ -295,11 +304,12 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name | Parameters                    | Accuracy | Note                         |
-|------------|-------------------------------|----------|------------------------------|
-| data2Vec   |                               | 92.4%    | State-of-the-art single task |
-| Tagging    | --additional_input            | 86.6%    |                              |
-| SophiaH    | --lr 4e-4 --optimizer sophiah | 85.3%    |                              |
+| Model name       | Parameters   | Accuracy |
+|------------------|--------------|----------|
+|data2Vec| State-of-the-art single task model|92.4%|
+| Baseline |  | 87.0%    |
+| Tagging    | `--additional_input`            | 86.6%    |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 85.3%   |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -308,12 +318,13 @@ opinion in a text is positive, negative, or neutral). Sentiment analysis can be 
 determine individual feelings towards particular products, politicians, or within news reports.
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
-
-| Model name       | Parameters   | Accuracy | Note                         |
-|------------------|--------------|----------|------------------------------|
-|Heinsen Routing + RoBERTa Large| | 59.8%    | State-of-the-art single task |
-| Tagging    | --additional_input            | 50.4%    |                              |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%    |                              |
+                            |
+| Model name       | Parameters   | Accuracy |
+|------------------|--------------|----------|
+|Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8%    |  
+| Tagging    | `--additional_input`            | 50.4%    |
+| Baseline |  | 49.4%    |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4%    |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -322,11 +333,12 @@ more similar than others; STS seeks to measure the degree of semantic equivalenc
 et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
 allows for 5 degrees of similarity.
 
-| Model name       | Parameters   | Pearson Correlation | Note                         |
-|------------------|--------------|---------------------|------------------------------|
-|MT-DNN-SMART| | 0.929               | State-of-the-art single task |
-| Tagging    | --additional_input            | 0.87                |                              |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87                |                              |
+| Model name       | Parameters   | Pearson Correlation |
+|------------------|--------------|--------------------|
+|MT-DNN-SMART| State-of-the-art single task model |0.929|
+| Tagging    | `--additional_input`            | 0.872                |
+| SophiaH | `--lr 4e-4 --optimizer sophiah` | 0.870              |
+| Baseline |  | 0.866                                            |
 
 ## PyTorch Profiler Results
 
