@@ -29,15 +29,17 @@ task-specific classifiers.
 
 ## Requirements
 
-To install requirements, using conda, run:
+To install requirements and all dependencies using conda, run:
 
 ```sh
-./setup.sh
+conda env create -f environment.yml
+python -m spacy download en_core_web_sm
 ```
 
-The script will create a new conda environment called `dnlp2` and install all required packages. The environment is
-activated with `conda activate dnlp2`.
-We use Python 3.10 and PyTorch 2.0.
+Alternatively, use the provided script `setup.sh`.
+The script will create a new conda environment called `dnlp2` and install all required packages.
+
+The environment is activated with `conda activate dnlp2`.
 
 ## Training
 
@@ -72,6 +74,70 @@ important ones are:
 
 The model is evaluated after each epoch on the validation set. The results are printed to the console and saved in
 the `logdir` directory. The best model is saved in the `models` directory.
+
+## Results
+
+As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
+
+- mode: `finetune`
+- epochs: `20`
+- learning rate: `8e-5`
+- scheduler: `ReduceLROnPlateau`
+- optimizer: `AdamW`
+- clip norm: `0.25`
+- batch size: `64`
+
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch until convergence. For further hyperparameter choices, see the default values in the [training script](./multitask_classifier.py).
+
+---
+
+Our multitask model achieves the following performance on:
+
+### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
+
+Paraphrase Detection is the task of finding paraphrases of texts in a large corpus of passages.
+Paraphrases are “rewordings of something written or spoken by someone else”; paraphrase
+detection thus essentially seeks to determine whether particular words or phrases convey
+the same semantic meaning.
+
+| Model name     | Parameters                                | Accuracy |
+| -------------- | ----------------------------------------- | -------- |
+| data2Vec       | State-of-the-art single task model        | 92.4%    |
+| Baseline       |                                           | 87.0%    |
+| Tagging        | `--additional_input`                      | 86.6%    |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5%    |
+| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 85.3%    |
+
+### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
+
+A basic task in understanding a given text is classifying its polarity (i.e., whether the expressed
+opinion in a text is positive, negative, or neutral). Sentiment analysis can be utilized to
+determine individual feelings towards particular products, politicians, or within news reports.
+Each phrase has a label of negative, somewhat negative,
+neutral, somewhat positive, or positive.
+
+| Model name                      | Parameters                                | Accuracy |
+| ------------------------------- | ----------------------------------------- | -------- |
+| Heinsen Routing + RoBERTa Large | State-of-the-art single task model        | 59.8%    |
+| Tagging                         | `--additional_input`                      | 50.4%    |
+| SophiaH                         | `--lr 4e-4 --optimizer sophiah`           | 49.4%    |
+| Baseline                        |                                           | 49.4%    |
+| Synthetic Data                  | `--sst_train data/ids-sst-train-syn3.csv` | 47.6%    |
+
+### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
+
+The semantic textual similarity (STS) task seeks to capture the notion that some texts are
+more similar than others; STS seeks to measure the degree of semantic equivalence [Agirre
+et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
+allows for 5 degrees of similarity.
+
+| Model name     | Parameters                                | Pearson Correlation |
+| -------------- | ----------------------------------------- | ------------------- |
+| MT-DNN-SMART   | State-of-the-art single task model        | 0.929               |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875               |
+| Tagging        | `--additional_input`                      | 0.872               |
+| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 0.870               |
+| Baseline       |                                           | 0.866               |
 
 ## Methodology
 
@@ -283,68 +349,6 @@ We used [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) to perform hyp
 <div align="center"><img src="https://media.discordapp.net/attachments/1146522094067269715/1146523064763437096/image.png?width=1440&height=678" alt="Hyperparameter Search to find a baseline" width="600"/></div>
 
 The trained models were evaluated on the validation set. The best model was selected based on the validation results ('dev'). The metrics used for the evaluation were accuracy only for paraphrase identification and sentiment classification, and Pearson correlation for semantic textual similarity.
-
-## Results
-
-As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
-
-- mode: `finetune`
-- epochs: `20`
-- learning rate: `8e-5`
-- scheduler: `ReduceLROnPlateau`
-- optimizer: `AdamW`
-- clip norm: `0.25`
-- batch size: `64`
-
-This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch until convergence. For further hyperparameter choices, see the default values in the [training script](./multitask_classifier.py).
-
-Our multitask model achieves the following performance on:
-
-### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
-
-Paraphrase Detection is the task of finding paraphrases of texts in a large corpus of passages.
-Paraphrases are “rewordings of something written or spoken by someone else”; paraphrase
-detection thus essentially seeks to determine whether particular words or phrases convey
-the same semantic meaning.
-
-| Model name     | Parameters                                | Accuracy |
-| -------------- | ----------------------------------------- | -------- |
-| data2Vec       | State-of-the-art single task model        | 92.4%    |
-| Baseline       |                                           | 87.0%    |
-| Tagging        | `--additional_input`                      | 86.6%    |
-| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5%    |
-| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 85.3%    |
-
-### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
-
-A basic task in understanding a given text is classifying its polarity (i.e., whether the expressed
-opinion in a text is positive, negative, or neutral). Sentiment analysis can be utilized to
-determine individual feelings towards particular products, politicians, or within news reports.
-Each phrase has a label of negative, somewhat negative,
-neutral, somewhat positive, or positive.
-
-| Model name                      | Parameters                                | Accuracy |
-| ------------------------------- | ----------------------------------------- | -------- |
-| Heinsen Routing + RoBERTa Large | State-of-the-art single task model        | 59.8%    |
-| Tagging                         | `--additional_input`                      | 50.4%    |
-| SophiaH                         | `--lr 4e-4 --optimizer sophiah`           | 49.4%    |
-| Baseline                        |                                           | 49.4%    |
-| Synthetic Data                  | `--sst_train data/ids-sst-train-syn3.csv` | 47.6%    |
-
-### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
-
-The semantic textual similarity (STS) task seeks to capture the notion that some texts are
-more similar than others; STS seeks to measure the degree of semantic equivalence [Agirre
-et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; rather STS
-allows for 5 degrees of similarity.
-
-| Model name     | Parameters                                | Pearson Correlation |
-| -------------- | ----------------------------------------- | ------------------- |
-| MT-DNN-SMART   | State-of-the-art single task model        | 0.929               |
-| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875               |
-| Tagging        | `--additional_input`                      | 0.872               |
-| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 0.870               |
-| Baseline       |                                           | 0.866               |
 
 ## PyTorch Profiler Results
 
