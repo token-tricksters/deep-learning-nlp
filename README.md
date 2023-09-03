@@ -106,8 +106,8 @@ reused across multiple epochs.
 #### Experimental Results
 
 Contrary to our initial expectations, the inclusion of POS and NER tag embeddings did not yield the desired improvements
-across the three tasks. Experimental results indicated that the performance either remained stagnant or even slightly
-deteriorated compared to the baseline BERT model without tag embeddings.
+across the three tasks. Experimental results indicated that the performance either remained stagnant or only slightly
+improved compared to the baseline BERT model without tag embeddings.
 
 #### Impact on Training Process
 
@@ -118,7 +118,7 @@ tags.
 #### Conclusion
 
 Although the integration of POS and NER tag embeddings initially seemed promising, our experiments showed that this
-approach did not contribute to performance across tasks. The training process was noticeably slowed down by the
+approach did not contribute significantly to the performance across the tasks. The training process was noticeably slowed down by the
 inclusion of tag embeddings.
 
 As a result, we concluded that the benefits of incorporating POS and NER tags were not substantial enough to justify the
@@ -295,10 +295,11 @@ Paraphrases are “rewordings of something written or spoken by someone else”;
 detection thus essentially seeks to determine whether particular words or phrases convey
 the same semantic meaning.
 
-| Model name       | Parameters   | Accuracy | Note                         |
-|------------------|--------------|----------|------------------------------|
-|data2Vec| |92.4%| State-of-the-art single task |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 85.3%   |                              |
+| Model name | Parameters                    | Accuracy | Note                         |
+|------------|-------------------------------|----------|------------------------------|
+| data2Vec   |                               | 92.4%    | State-of-the-art single task |
+| Tagging    | --additional_input            | 86.6%    |                              |
+| SophiaH    | --lr 4e-4 --optimizer sophiah | 85.3%    |                              |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -311,6 +312,7 @@ neutral, somewhat positive, or positive.
 | Model name       | Parameters   | Accuracy | Note                         |
 |------------------|--------------|----------|------------------------------|
 |Heinsen Routing + RoBERTa Large| | 59.8%    | State-of-the-art single task |
+| Tagging    | --additional_input            | 50.4%    |                              |
 | SophiaH | --lr 4e-4 --optimizer sophiah | 49.4%    |                              |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
@@ -321,9 +323,10 @@ et al., 2013]. STS differs from paraphrasing in it is not a yes or no decision; 
 allows for 5 degrees of similarity.
 
 | Model name       | Parameters   | Pearson Correlation | Note                         |
-|------------------|--------------|--------------------|------------------------------|
-|MT-DNN-SMART| |0.929| State-of-the-art single task |
-| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87              |                              |
+|------------------|--------------|---------------------|------------------------------|
+|MT-DNN-SMART| | 0.929               | State-of-the-art single task |
+| Tagging    | --additional_input            | 0.87                |                              |
+| SophiaH | --lr 4e-4 --optimizer sophiah | 0.87                |                              |
 
 ## PyTorch Profiler Results
 
