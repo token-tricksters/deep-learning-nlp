@@ -71,9 +71,6 @@ important ones are:
 | `--use_gpu`             | Whether to use the GPU.                                                        |
 | `--weight_decay`        | Weight decay for optimizer.                                                    |
 
-> 📋 Describe how to train the models, with example commands on how to train the models in your paper, including the full
-> training procedure and appropriate hyperparameters.
-
 ## Evaluation
 
 The model is evaluated after each epoch on the validation set. The results are printed to the console and saved in
@@ -190,13 +187,13 @@ We employed OpenAI's GPT-2 medium model variant ([Language Models are Unsupervis
 For our third plan, we asked [GPT-4](https://arxiv.org/abs/2303.08774) to produce new examples.
 The data obtained from GPT-4 are of the highest quality. could only collect a restricted amount of data (~500 instances) due to ChatGPT's limitations and GPT-4's confidential nature.
 
-#### Results with Synthetic Data
-
-It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. While some might argue that the model hadn't converged completely, the unchanged validation loss led us to stop further training.
-
 #### Caution: Synthetic Data
 
 OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential concerns about data overlaps with our sentiment classification set. Even though these models are unlikely to reproduce particular test set instances, the concern remains and should be addressed.
+
+#### Results with Synthetic Data
+
+It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100,000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. However, we believe that the synthetic data augmentation approach has potential and could be further explored in future research.
 
 ---
 
@@ -295,7 +292,8 @@ As a Baseline of our model we chose the following hyperparameters. These showed 
 - clip norm: `0.25`
 - batch size: `64`
 
-This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch.
+This allowed us to evaluate the impact of the different improvements to the model. The baseline model was trained at 10.000 samples per epoch until convergence.
+
 Our multitask model achieves the following performance on:
 
 ### [Paraphrase Identification on Quora Question Pairs](https://paperswithcode.com/sota/paraphrase-identification-on-quora-question)
@@ -310,6 +308,7 @@ the same semantic meaning.
 |data2Vec| State-of-the-art single task model|92.4%|
 | Baseline |  | 87.0%    |
 | Tagging    | `--additional_input`            | 86.6%    |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5% |
 | SophiaH | `--lr 4e-4 --optimizer sophiah` | 85.3%   |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
@@ -319,13 +318,14 @@ opinion in a text is positive, negative, or neutral). Sentiment analysis can be 
 determine individual feelings towards particular products, politicians, or within news reports.
 Each phrase has a label of negative, somewhat negative,
 neutral, somewhat positive, or positive.
-                            |
+
 | Model name       | Parameters   | Accuracy |
 |------------------|--------------|----------|
 |Heinsen Routing + RoBERTa Large| State-of-the-art single task model| 59.8%    |  
 | Tagging    | `--additional_input`            | 50.4%    |
-| Baseline |  | 49.4%    |
 | SophiaH | `--lr 4e-4 --optimizer sophiah` | 49.4%    |
+| Baseline |  | 49.4%    |
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 47.6% |
 
 ### [Semantic Textual Similarity on STS](https://paperswithcode.com/sota/semantic-textual-similarity-on-sts-benchmark)
 
@@ -337,6 +337,7 @@ allows for 5 degrees of similarity.
 | Model name       | Parameters   | Pearson Correlation |
 |------------------|--------------|--------------------|
 |MT-DNN-SMART| State-of-the-art single task model |0.929|
+| Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875 |
 | Tagging    | `--additional_input`            | 0.872                |
 | SophiaH | `--lr 4e-4 --optimizer sophiah` | 0.870              |
 | Baseline |  | 0.866                                            |
