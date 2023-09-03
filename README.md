@@ -1,7 +1,7 @@
 # DNLP SS23 Final Project - Multitask BERT
 
 <div align="right">
-<u> Token Tricksters </u> <br/>
+<b> Token Tricksters </b> <br/>
 Lars Kaesberg <br/>
 Niklas Bauer <br/>
 Constantin Dalinghaus <br/>
