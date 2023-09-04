@@ -403,7 +403,7 @@ To contribute to the project, please follow the following steps:
 Clone the repository to your local machine.
 
 ````sh
-git clone git@gitlab.gwdg.de:deep-learning-nlp/token-tricksters.git
+git clone git@github.com:token-tricksters/deep-learning-nlp.git
 ````
 
 Add the upstream repository as a remote and disable pushing to it. This allows you to pull from the upstream repository
