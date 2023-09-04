@@ -16,7 +16,7 @@ Constantin Dalinghaus <br/>
 [![Black Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://black.readthedocs.io/en/stable/)
 [![AI-Usage Card](https://img.shields.io/badge/AI_Usage_Card-pdf-blue.svg)](./AI-Usage-Card.pdf/)
 
-This repository is the official implementation of the Multitask BERT project for the Deep Learning for Natural Language
+This repository our official implementation of the Multitask BERT project for the Deep Learning for Natural Language
 Processing course at the University of Göttingen.
 
 A pretrained
@@ -33,13 +33,13 @@ To install requirements and all dependencies using conda, run:
 
 ```sh
 conda env create -f environment.yml
-python -m spacy download en_core_web_sm
 ```
+
+The environment is activated with `conda activate dnlp2`.
+Additionally, the POS and NER tags need to be downloaded. This can be done by running `python -m spacy download en_core_web_sm`.
 
 Alternatively, use the provided script `setup.sh`.
 The script will create a new conda environment called `dnlp2` and install all required packages.
-
-The environment is activated with `conda activate dnlp2`.
 
 ## Training
 
@@ -77,7 +77,7 @@ the `logdir` directory. The best model is saved in the `models` directory.
 
 ## Results
 
-As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting in our hyperparameter search and provided a good starting point for further improvements.
+As a Baseline of our model we chose the following hyperparameters. These showed to be the best against overfitting (which was our main issue) in our hyperparameter search and provided a good starting point for further improvements.
 
 - mode: `finetune`
 - epochs: `20`
@@ -106,7 +106,7 @@ the same semantic meaning.
 | Baseline       |                                           | 87.0%    |
 | Tagging        | `--additional_input`                      | 86.6%    |
 | Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 86.5%    |
-| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 85.3%    |
+| SophiaH        | `--optimizer sophiah`           | 85.3%    |
 
 ### [Sentiment Classification on Stanford Sentiment Treebank (SST)](https://paperswithcode.com/sota/sentiment-analysis-on-sst-5-fine-grained)
 
@@ -120,7 +120,7 @@ neutral, somewhat positive, or positive.
 | ------------------------------- | ----------------------------------------- | -------- |
 | Heinsen Routing + RoBERTa Large | State-of-the-art single task model        | 59.8%    |
 | Tagging                         | `--additional_input`                      | 50.4%    |
-| SophiaH                         | `--lr 4e-4 --optimizer sophiah`           | 49.4%    |
+| SophiaH                         | `--optimizer sophiah`           | 49.4%    |
 | Baseline                        |                                           | 49.4%    |
 | Synthetic Data                  | `--sst_train data/ids-sst-train-syn3.csv` | 47.6%    |
 
@@ -136,7 +136,7 @@ allows for 5 degrees of similarity.
 | MT-DNN-SMART   | State-of-the-art single task model        | 0.929               |
 | Synthetic Data | `--sst_train data/ids-sst-train-syn3.csv` | 0.875               |
 | Tagging        | `--additional_input`                      | 0.872               |
-| SophiaH        | `--lr 4e-4 --optimizer sophiah`           | 0.870               |
+| SophiaH        | `--optimizer sophiah`           | 0.870               |
 | Baseline       |                                           | 0.866               |
 
 ## Methodology
@@ -252,7 +252,8 @@ OpenAI's GPT-2 and GPT-4, were trained on undisclosed datasets, posing potential
 
 #### Results with Synthetic Data
 
-It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100.000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. However, we believe that the synthetic data augmentation approach has potential and could be further explored in future research.
+It's important to mention that our model didn't overfit on the training set, even after 30 epochs with 100.000 synthetic instances from GPT2. The methods used didn't improve the validation accuracy beyond what our best model already achieved. Additionally, performance worsened on the task with synthetic data.
+However, we believe that the synthetic data augmentation approach has potential and could be further explored in future research, especially with larger models like GPT-4.
 
 ---
 
@@ -461,9 +462,9 @@ To run tensorboard on the Grete cluster you can use the following commands to cr
 start tensorboard.
 
 ````sh
-ssh -L localhost:16006:localhost:6006 bzkurs42@glogin9.hlrn.de
+ssh -L localhost:16006:localhost:6006 <username>@glogin.hlrn.de
 module load anaconda3
-source activate dnlp2
+conda activate dnlp2
 tensorboard --logdir logdir
 ````
 
@@ -476,7 +477,7 @@ srun -p grete:shared --pty -G A100:1 --interactive bash
 
 ## AI-Usage Card
 
-Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our [AI-Usage Card](./AI-Usage-Card.pdf/). The card is based on [https://ai-cards.org/](https://ai-cards.org/).
+Artificial Intelligence (AI) aided the development of this project. For transparency, we provide our [AI-Usage Card](./AI-Usage-Card.pdf/) at the top. The card is based on [https://ai-cards.org/](https://ai-cards.org/).
 
 ## Acknowledgement
 
